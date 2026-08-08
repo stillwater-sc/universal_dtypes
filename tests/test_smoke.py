@@ -16,7 +16,7 @@ def test_version_is_semver():
 def test_build_info():
     info = universal_dtypes.build_info()
     assert info["universal"] is True
-    assert info["dtypes"] is False  # not implemented yet
+    assert info["dtypes"] is True  # bfloat16 + posit family registered
 
 
 def test_posit16_roundtrip_exact_values():
