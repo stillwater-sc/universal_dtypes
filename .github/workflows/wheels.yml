@@ -17,8 +17,12 @@ name: Build wheels
 # owner=stillwater-sc, repo=universal_dtypes, workflow=wheels.yml,
 # environment=pypi. See docs/design.md.
 on:
-  push:
-    branches: [main]
+  # push:main auto-release is TEMPORARILY DISABLED during remediation.
+  # semantic-release 10.6.1 kept defaulting to a first-release v1.0.0 on every
+  # push instead of recognizing the v0.1.0 baseline. Re-enable once baseline
+  # detection is fixed and the release-job guard is in place.
+  #   push:
+  #     branches: [main]
   release:
     types: [published]
   workflow_dispatch:
