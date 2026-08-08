@@ -30,6 +30,15 @@ semantic-release manages the **patch** component.
 
 <!-- version list -->
 
+## v0.1.2 (2026-08-08)
+
+### Refactoring
+
+- **dtype**: Re-implement bfloat16 on the NEP-42 DType API (NumPy 2.x)
+  ([#11](https://github.com/stillwater-sc/universal_dtypes/pull/11),
+  [`6439d44`](https://github.com/stillwater-sc/universal_dtypes/commit/6439d44691e3a780972af06aedf4ff0c5717fb38))
+
+
 ## v0.1.1 (2026-08-08)
 
 ### Continuous Integration
