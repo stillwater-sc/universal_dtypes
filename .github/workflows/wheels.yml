@@ -45,7 +45,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install python-semantic-release
@@ -86,7 +86,7 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.tag || github.ref }}
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install cibuildwheel
@@ -103,7 +103,7 @@ jobs:
           CIBW_SKIP: "*-musllinux*"
           CIBW_TEST_REQUIRES: pytest numpy
           CIBW_TEST_COMMAND: pytest {project}/tests -v
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ matrix.os }}
           path: wheelhouse/*.whl
@@ -120,12 +120,12 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.tag || github.ref }}
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install build
       - run: python -m build --sdist
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: sdist
           path: dist/*.tar.gz
@@ -148,7 +148,7 @@ jobs:
       id-token: write
     steps:
       - name: Gather wheels and sdist into dist/
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
@@ -171,7 +171,7 @@ jobs:
       id-token: write
     steps:
       - name: Gather wheels and sdist into dist/
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
