@@ -19,6 +19,6 @@ except _PackageNotFoundError:
     except ImportError:
         __version__ = "0.0.0-dev"
 
-from universal_dtypes._core import build_info, posit16_roundtrip  # noqa: E402
+from universal_dtypes._core import bfloat16, build_info, posit16_roundtrip  # noqa: E402
 
-__all__ = ["__version__", "build_info", "posit16_roundtrip"]
+__all__ = ["__version__", "bfloat16", "build_info", "posit16_roundtrip"]

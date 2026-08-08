@@ -14,10 +14,23 @@ if(NOT nanobind_FOUND)
     FetchContent_MakeAvailable(nanobind)
 endif()
 
-nanobind_add_module(_core src/universal_dtypes_module.cpp)
+nanobind_add_module(_core
+    src/universal_dtypes_module.cpp
+    src/bfloat16.cpp)
 
 # Header-only Universal number systems.
 target_link_libraries(_core PRIVATE universal)
+
+# NumPy C-API headers (for the custom dtype registration). Built against the
+# NumPy pinned in [build-system].requires (1.x); the wheel runs on 2.x too.
+execute_process(
+    COMMAND "${Python_EXECUTABLE}" -c "import numpy; print(numpy.get_include())"
+    OUTPUT_VARIABLE NUMPY_INCLUDE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE NUMPY_INCLUDE_RESULT)
+if(NOT NUMPY_INCLUDE_RESULT EQUAL 0)
+    message(FATAL_ERROR "Could not locate NumPy headers (is numpy in the build env?)")
+endif()
+target_include_directories(_core PRIVATE ${NUMPY_INCLUDE_DIR})
 
 # Inject the package version from pyproject.toml (scikit-build-core sets
 # SKBUILD_PROJECT_VERSION). A bare `cmake -S . -B build` has no package metadata,
