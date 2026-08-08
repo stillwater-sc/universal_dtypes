@@ -30,29 +30,30 @@
 #include <numpy/ndarraytypes.h>
 #include <numpy/ufuncobject.h>
 
+#include <universal/number/bfloat16/bfloat16.hpp>
+
 #include <nanobind/nanobind.h>
 namespace nb = nanobind;
 
 // --------------------------------------------------------------------------
-// bf16 <-> float32 (canonical round-to-nearest-even)
+// bf16 numerics are delegated to Universal's sw::universal::bfloat16 — the same
+// C++ type used across the Universal library. bfloat16(float) rounds
+// round-to-nearest-even and operator float() converts back; both are bit-for-bit
+// identical to the previous hand-rolled conversion (still validated by the
+// ml_dtypes oracle). Delegating here — plus the arithmetic loops below, which
+// use Universal's own operators — establishes the "dtype delegates to a
+// Universal C++ type" harness that the templated types (posit<...>) reuse.
 // --------------------------------------------------------------------------
+using ubfloat16 = sw::universal::bfloat16;
+
 static inline float bf16_bits_to_float(uint16_t h) {
-    uint32_t u = static_cast<uint32_t>(h) << 16;
-    float f;
-    std::memcpy(&f, &u, sizeof(f));
-    return f;
+    ubfloat16 b;
+    b.setbits(h);
+    return float(b);
 }
 
 static inline uint16_t float_to_bf16_bits(float f) {
-    uint32_t u;
-    std::memcpy(&u, &f, sizeof(u));
-    if (std::isnan(f)) {
-        return static_cast<uint16_t>((u >> 16) | 0x0040u);  // quiet NaN
-    }
-    uint32_t lsb = (u >> 16) & 1u;
-    uint32_t rounding_bias = 0x00007FFFu + lsb;
-    u += rounding_bias;
-    return static_cast<uint16_t>(u >> 16);
+    return ubfloat16(f).bits();
 }
 
 // --------------------------------------------------------------------------
@@ -462,7 +463,10 @@ static NPY_CASTING bf16_ufunc_resolve(PyObject* NPY_UNUSED(self),
     return NPY_NO_CASTING;
 }
 
-template <float (*Op)(float, float)>
+// Arithmetic runs on Universal's bfloat16: bits -> ubfloat16 -> Universal op ->
+// bits. Universal's operators compute in float and round on assignment, so this
+// matches ml_dtypes exactly while sourcing the numerics from the C++ type.
+template <ubfloat16 (*Op)(ubfloat16, ubfloat16)>
 static int bf16_binary_loop(PyArrayMethod_Context* NPY_UNUSED(ctx), char* const data[],
                             npy_intp const dims[], npy_intp const strides[],
                             NpyAuxData* NPY_UNUSED(ad)) {
@@ -472,7 +476,10 @@ static int bf16_binary_loop(PyArrayMethod_Context* NPY_UNUSED(ctx), char* const 
         uint16_t a, b;
         std::memcpy(&a, i0, 2);
         std::memcpy(&b, i1, 2);
-        uint16_t r = float_to_bf16_bits(Op(bf16_bits_to_float(a), bf16_bits_to_float(b)));
+        ubfloat16 ua, ub;
+        ua.setbits(a);
+        ub.setbits(b);
+        uint16_t r = Op(ua, ub).bits();
         std::memcpy(o, &r, 2);
         i0 += strides[0];
         i1 += strides[1];
@@ -480,12 +487,12 @@ static int bf16_binary_loop(PyArrayMethod_Context* NPY_UNUSED(ctx), char* const 
     }
     return 0;
 }
-static float op_add(float a, float b) { return a + b; }
-static float op_sub(float a, float b) { return a - b; }
-static float op_mul(float a, float b) { return a * b; }
-static float op_div(float a, float b) { return a / b; }
+static ubfloat16 op_add(ubfloat16 a, ubfloat16 b) { return a + b; }
+static ubfloat16 op_sub(ubfloat16 a, ubfloat16 b) { return a - b; }
+static ubfloat16 op_mul(ubfloat16 a, ubfloat16 b) { return a * b; }
+static ubfloat16 op_div(ubfloat16 a, ubfloat16 b) { return a / b; }
 
-template <float (*Op)(float)>
+template <ubfloat16 (*Op)(ubfloat16)>
 static int bf16_unary_loop(PyArrayMethod_Context* NPY_UNUSED(ctx), char* const data[],
                            npy_intp const dims[], npy_intp const strides[],
                            NpyAuxData* NPY_UNUSED(ad)) {
@@ -494,15 +501,17 @@ static int bf16_unary_loop(PyArrayMethod_Context* NPY_UNUSED(ctx), char* const d
     while (N--) {
         uint16_t a;
         std::memcpy(&a, i0, 2);
-        uint16_t r = float_to_bf16_bits(Op(bf16_bits_to_float(a)));
+        ubfloat16 ua;
+        ua.setbits(a);
+        uint16_t r = Op(ua).bits();
         std::memcpy(o, &r, 2);
         i0 += strides[0];
         o += strides[1];
     }
     return 0;
 }
-static float op_neg(float a) { return -a; }
-static float op_abs(float a) { return std::fabs(a); }
+static ubfloat16 op_neg(ubfloat16 a) { return -a; }
+static ubfloat16 op_abs(ubfloat16 a) { return a.isneg() ? -a : a; }
 
 template <bool (*Cmp)(float, float)>
 static int bf16_cmp_loop(PyArrayMethod_Context* NPY_UNUSED(ctx), char* const data[],

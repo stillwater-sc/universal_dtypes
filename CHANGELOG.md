@@ -14,19 +14,18 @@ semantic-release manages the **patch** component.
 
 ### Changed
 
-- **`bfloat16` re-implemented on the NEP-42 DType API (issue #3).** `bfloat16` is
-  now a first-class `PyArray_DTypeMeta` (a real subclass of `np.dtype`) registered
-  via `PyArrayInitDTypeMeta_FromSpec`, with casts and ufunc loops implemented as
-  ArrayMethods — replacing the legacy user-dtype C-API path shipped in 0.1.1.
-  This makes the dtype **NumPy 2.x-native** (build and runtime now require
-  `numpy>=2`). Behavior is unchanged: array creation, casts to/from
-  float32/float64/int/bool, element-wise `+ - * /`, `negative`/`absolute`,
-  comparisons, and reductions, still cross-validated bit-for-bit against
-  `ml_dtypes.bfloat16`. The float32-compute-then-round arithmetic is now routed
-  through per-ufunc strided loops, establishing the ArrayMethod harness the
-  templated types (`posit<...>`) will reuse. Remaining follow-ups (full math
-  ufuncs, sort/argsort polish, pickling, `np.dtype("bfloat16")` string name,
-  pandas extra, and routing the round through Universal's `bfloat16`) stay on #3.
+- **`bfloat16` numerics now delegate to Universal's `sw::universal::bfloat16`
+  (issue #3).** The dtype's conversions and arithmetic (`+ - * /`,
+  `negative`/`absolute`) are sourced from the Universal C++ type — the ArrayMethod
+  strided loops construct `sw::universal::bfloat16` and call its operators/
+  `bits()`/`setbits()` — instead of hand-rolled bit twiddling. This is
+  numerically identical (Universal uses the same round-to-nearest-even and
+  float-compute-then-round), still cross-validated bit-for-bit against
+  `ml_dtypes.bfloat16`, and it establishes the delegation harness that the
+  templated types (`posit<...>`, #6) reuse to bind a Universal C++ type to a
+  NumPy dtype. Closes the core of #3; remaining polish (full math ufuncs,
+  sort/argsort, pickling, `np.dtype("bfloat16")` string name, pandas extra)
+  is tracked there.
 
 <!-- version list -->
 
