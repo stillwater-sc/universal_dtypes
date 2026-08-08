@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Pinned deliberately: an unpinned ruff release can retroactively fail
+      # open PRs for reasons unrelated to the change under review.
+      - run: pip install ruff==0.16.1
+      - run: ruff check .
+      - run: ruff format --check .
+
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, python: "3.10" }
+          - { os: ubuntu-22.04, python: "3.12" }
+          - { os: macos-14, python: "3.12" }
+          - { os: windows-2022, python: "3.12" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install package
+        run: pip install ".[dev]" -v
+      - name: Run tests
+        run: pytest -v

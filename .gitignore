@@ -67,3 +67,24 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+wheelhouse/
+*.whl
+.eggs/
+
+# scikit-build-core / CMake build trees
+_skbuild/
+_cmake_test_compile/
+
+# Virtual environments
+.venv/
+venv/
+
+# Test / tooling caches
+.pytest_cache/
+.ruff_cache/
