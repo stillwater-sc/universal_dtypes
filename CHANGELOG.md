@@ -12,19 +12,21 @@ semantic-release manages the **patch** component.
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- **`bfloat16` NumPy dtype (MVP, issue #3).** Register `universal_dtypes.bfloat16`
-  as a NumPy dtype via the legacy user-dtype C-API: array creation, casts to/from
-  float32/float64/int, element-wise `+ - * /`, `negative`/`absolute`, comparisons,
-  and reductions. Rounding + arithmetic are cross-validated bit-for-bit against
-  `ml_dtypes.bfloat16`. Built against NumPy 1.x (runtime pinned `numpy<2` for now;
-  NumPy 2.x support and the remaining ufuncs/sort/pickling/pandas are tracked in #3).
-- Project scaffold: packaging (scikit-build-core + nanobind, fetching the
-  Universal headers), a minimal `_core` extension proving the build wiring
-  (`posit16_roundtrip`, `build_info`), CI (lint + build/test matrix), and the
-  consolidated Trusted-Publishing release pipeline (`wheels.yml`). No NumPy
-  dtypes yet — see [`docs/design.md`](docs/design.md).
+- **`bfloat16` re-implemented on the NEP-42 DType API (issue #3).** `bfloat16` is
+  now a first-class `PyArray_DTypeMeta` (a real subclass of `np.dtype`) registered
+  via `PyArrayInitDTypeMeta_FromSpec`, with casts and ufunc loops implemented as
+  ArrayMethods — replacing the legacy user-dtype C-API path shipped in 0.1.1.
+  This makes the dtype **NumPy 2.x-native** (build and runtime now require
+  `numpy>=2`). Behavior is unchanged: array creation, casts to/from
+  float32/float64/int/bool, element-wise `+ - * /`, `negative`/`absolute`,
+  comparisons, and reductions, still cross-validated bit-for-bit against
+  `ml_dtypes.bfloat16`. The float32-compute-then-round arithmetic is now routed
+  through per-ufunc strided loops, establishing the ArrayMethod harness the
+  templated types (`posit<...>`) will reuse. Remaining follow-ups (full math
+  ufuncs, sort/argsort polish, pickling, `np.dtype("bfloat16")` string name,
+  pandas extra, and routing the round through Universal's `bfloat16`) stay on #3.
 
 <!-- version list -->
 
