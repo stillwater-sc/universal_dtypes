@@ -1,0 +1,183 @@
+name: Build wheels
+
+# One workflow, three triggers — all publishing happens HERE so the OIDC
+# `workflow` claim is always `wheels.yml` (a direct, non-reusable workflow),
+# which is what PyPI's Trusted Publishing supports. (Reusable workflows are NOT
+# supported by PyPI Trusted Publishing; a GITHUB_TOKEN-created release does not
+# trigger other workflows either — so build+publish live in the same run as
+# semantic-release. See mtl5-python's release history for how this was learned.)
+#
+#   push: main         → automated release: semantic-release bumps/tags/creates
+#                        the GitHub Release, then (if it released) build +
+#                        publish-pypi run in the same run.
+#   release: published → a human-cut GitHub Release: build + publish to PyPI.
+#   workflow_dispatch  → manual dry-run: build + publish to TestPyPI.
+#
+# PREREQUISITE: register a PyPI (and TestPyPI) trusted publisher for
+# owner=stillwater-sc, repo=universal_dtypes, workflow=wheels.yml,
+# environment=pypi. See docs/design.md.
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Automated versioning — push to main only.
+  release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # push the release commit + tag, create the GitHub Release
+    outputs:
+      released: ${{ steps.psr.outputs.released }}
+      tag: ${{ steps.psr.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install python-semantic-release
+        run: pip install "python-semantic-release>=10,<11"
+      - name: Configure git identity for the release commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Release (bump, changelog, commit, tag, push, GitHub Release)
+        id: psr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          before=$(git tag | wc -l)
+          semantic-release version
+          after=$(git tag | wc -l)
+          if [ "$after" -gt "$before" ]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$(git describe --tags --abbrev=0)" >> "$GITHUB_OUTPUT"
+            echo "Released $(git describe --tags --abbrev=0)"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            echo "No conventional commits warranted a release."
+          fi
+
+  build-wheels:
+    needs: [release]
+    if: >-
+      !cancelled()
+      && needs.release.result != 'failure'
+      && (github.event_name != 'push' || needs.release.outputs.released == 'true')
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-14, windows-2022]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.release.outputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cibuildwheel
+        run: pip install cibuildwheel
+      - name: Build wheels
+        run: cibuildwheel --output-dir wheelhouse
+        env:
+          # 64-bit only. cibuildwheel's default "auto" archs still include the
+          # 32-bit win32 target on Windows, which a C++20 / nanobind / Universal
+          # extension cannot build. auto64 selects the native 64-bit arch per
+          # platform (AMD64 / x86_64 / arm64).
+          CIBW_ARCHS: "auto64"
+          CIBW_BUILD: "cp310-* cp311-* cp312-*"
+          CIBW_SKIP: "*-musllinux*"
+          CIBW_TEST_REQUIRES: pytest numpy
+          CIBW_TEST_COMMAND: pytest {project}/tests -v
+      - uses: actions/upload-artifact@v5
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  build-sdist:
+    needs: [release]
+    if: >-
+      !cancelled()
+      && needs.release.result != 'failure'
+      && (github.event_name != 'push' || needs.release.outputs.released == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.release.outputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build
+      - run: python -m build --sdist
+      - uses: actions/upload-artifact@v5
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  # Publish to PyPI: on a human-cut Release, or on a push that cut a release.
+  # OIDC workflow claim = wheels.yml (direct) — no token; uses the trusted
+  # publisher registered on PyPI. No skip-existing: a duplicate production
+  # version must fail loudly.
+  publish-pypi:
+    needs: [release, build-wheels, build-sdist]
+    if: >-
+      !cancelled()
+      && needs.build-wheels.result == 'success'
+      && needs.build-sdist.result == 'success'
+      && (github.event_name == 'release'
+          || (github.event_name == 'push' && needs.release.outputs.released == 'true'))
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Gather wheels and sdist into dist/
+        uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+
+  # Dry-run lane: publish to TestPyPI on a manual workflow_dispatch.
+  publish-testpypi:
+    needs: [build-wheels, build-sdist]
+    if: >-
+      !cancelled()
+      && needs.build-wheels.result == 'success'
+      && needs.build-sdist.result == 'success'
+      && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Gather wheels and sdist into dist/
+        uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true

@@ -1,0 +1,64 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "nanobind>=2.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "universal_dtypes"
+version = "0.1.0"
+description = "NumPy dtypes for the Stillwater Universal number systems (posit, cfloat, fixpnt, lns)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Stillwater Supercomputing, Inc." }]
+dependencies = ["numpy>=1.24"]
+
+[project.urls]
+Homepage = "https://github.com/stillwater-sc/universal_dtypes"
+Repository = "https://github.com/stillwater-sc/universal_dtypes"
+Universal = "https://github.com/stillwater-sc/universal"
+
+[project.optional-dependencies]
+pandas = ["pandas>=2.0"]
+dev = ["pytest>=7.0", "numpy>=1.24"]
+
+[tool.scikit-build]
+cmake.build-type = "Release"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+# ---------------------------------------------------------------------------
+# python-semantic-release
+#
+# universal_dtypes is a pre-1.0 package (major_on_zero = false), and — like
+# mtl5-python — semantic-release manages only the PATCH component from
+# conventional commits (feat/fix/perf/refactor → patch). Minor/major bumps are
+# manual, intended to track the Universal release the dtypes are built against.
+# ---------------------------------------------------------------------------
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+tag_format = "v{version}"
+commit_message = "chore(release): v{version}"
+major_on_zero = false
+branch = "main"
+
+[tool.semantic_release.commit_parser_options]
+minor_tags = []
+patch_tags = ["feat", "fix", "perf", "refactor"]
+
+[tool.semantic_release.changelog]
+changelog_file = "CHANGELOG.md"
+mode = "update"
+insertion_flag = "<!-- version list -->"
+
+[tool.semantic_release.publish]
+# The dedicated publish-pypi job in wheels.yml uploads (Trusted Publishing);
+# semantic-release is not the publisher.
+upload_to_pypi = false
