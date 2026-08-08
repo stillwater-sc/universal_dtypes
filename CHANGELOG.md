@@ -27,3 +27,24 @@ semantic-release manages the **patch** component.
   dtypes yet — see [`docs/design.md`](docs/design.md).
 
 <!-- version list -->
+
+## v0.1.1 (2026-08-08)
+
+### Continuous Integration
+
+- Disable push-triggered auto-release; reset to 0.1.0 (remediation)
+  ([`0439ccd`](https://github.com/stillwater-sc/universal_dtypes/commit/0439ccd70be327b80158be3b3ec01635b1714f6d))
+
+- **release**: Fix auto-release (allow_zero_version) + guard, re-enable
+  ([`3deb2e7`](https://github.com/stillwater-sc/universal_dtypes/commit/3deb2e722d232a33641bea399eb50ef7c669abb6))
+
+### Documentation
+
+- Add RELEASING.md (PyPI / TestPyPI release guide)
+  ([`e64c286`](https://github.com/stillwater-sc/universal_dtypes/commit/e64c2865a3c91653d2aa43d52902947c2880b5cd))
+
+### Features
+
+- **dtype**: Bfloat16 NumPy dtype (MVP)
+  ([#10](https://github.com/stillwater-sc/universal_dtypes/pull/10),
+  [`36c81bc`](https://github.com/stillwater-sc/universal_dtypes/commit/36c81bc763c5eb6cb9045faa3db1f8f514226e87))
