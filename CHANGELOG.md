@@ -29,6 +29,15 @@ semantic-release manages the **patch** component.
 
 <!-- version list -->
 
+## v0.1.3 (2026-08-08)
+
+### Features
+
+- **dtype**: Delegate bfloat16 numerics to Universal's bfloat16
+  ([#12](https://github.com/stillwater-sc/universal_dtypes/pull/12),
+  [`18a330b`](https://github.com/stillwater-sc/universal_dtypes/commit/18a330ba2981d0923c63a7a90413894ed206edeb))
+
+
 ## v0.1.2 (2026-08-08)
 
 ### Refactoring
