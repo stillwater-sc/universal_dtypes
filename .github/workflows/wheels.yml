@@ -17,12 +17,8 @@ name: Build wheels
 # owner=stillwater-sc, repo=universal_dtypes, workflow=wheels.yml,
 # environment=pypi. See docs/design.md.
 on:
-  # push:main auto-release is TEMPORARILY DISABLED during remediation.
-  # semantic-release 10.6.1 kept defaulting to a first-release v1.0.0 on every
-  # push instead of recognizing the v0.1.0 baseline. Re-enable once baseline
-  # detection is fixed and the release-job guard is in place.
-  #   push:
-  #     branches: [main]
+  push:
+    branches: [main]
   release:
     types: [published]
   workflow_dispatch:
@@ -64,6 +60,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           before=$(git tag | wc -l)
+          # Guard: never auto-release from a repo with no baseline version tag.
+          # semantic-release treats a tagless repo as a first release; combined
+          # with allow_zero_version it can force a 1.0.0. Bootstrap the first
+          # release deliberately (git tag -a vX.Y.Z && git push origin vX.Y.Z),
+          # then let semantic-release manage subsequent versions.
+          if [ "$before" -eq 0 ]; then
+            echo "No baseline version tag — skipping automated release."
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           semantic-release version
           after=$(git tag | wc -l)
           if [ "$after" -gt "$before" ]; then

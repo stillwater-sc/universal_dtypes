@@ -47,6 +47,11 @@ version_toml = ["pyproject.toml:project.version"]
 tag_format = "v{version}"
 commit_message = "chore(release): v{version}"
 major_on_zero = false
+# MUST stay true. With allow_zero_version=false, semantic-release "escapes" 0.x
+# by force-bumping to 1.0.0 on the first run — even for non-release commits —
+# which is what accidentally published 1.0.0. Keeping it true holds the package
+# on 0.x until a deliberate major bump.
+allow_zero_version = true
 branch = "main"
 
 [tool.semantic_release.commit_parser_options]
