@@ -21,7 +21,3 @@ semantic-release manages the **patch** component.
   dtypes yet — see [`docs/design.md`](docs/design.md).
 
 <!-- version list -->
-
-## v1.0.0 (2026-08-08)
-
-- Initial Release
