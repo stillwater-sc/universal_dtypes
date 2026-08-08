@@ -16,7 +16,11 @@ namespace nb = nanobind;
 #define UNIVERSAL_DTYPES_VERSION "0.0.0-dev"
 #endif
 
+// Registers the bfloat16 NumPy dtype (python/src/bfloat16.cpp).
+void register_bfloat16(nb::module_& m);
+
 NB_MODULE(_core, m) {
+    register_bfloat16(m);
     m.doc() = "universal_dtypes core — NumPy dtypes for Universal number systems (scaffold)";
     m.attr("__version__") = UNIVERSAL_DTYPES_VERSION;
 

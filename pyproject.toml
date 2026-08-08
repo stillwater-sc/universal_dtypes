@@ -1,5 +1,10 @@
 [build-system]
-requires = ["scikit-build-core>=0.10", "nanobind>=2.0"]
+# Build against NumPy 1.x on purpose: the bfloat16 dtype uses the legacy
+# user-dtype C-API, whose PyArray_Descr struct went opaque in NumPy 2.0. A wheel
+# built against 1.x still runs on 2.x (NumPy's forward-ABI guarantee), so this
+# gives the widest runtime compatibility. NEP-42 (2.x-native) is the follow-up
+# tracked on #3. Runtime dep (below) remains numpy>=1.24, i.e. 1.x and 2.x.
+requires = ["scikit-build-core>=0.10", "nanobind>=2.0", "numpy>=1.24,<2"]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -10,7 +15,7 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
 authors = [{ name = "Stillwater Supercomputing, Inc." }]
-dependencies = ["numpy>=1.24"]
+dependencies = ["numpy>=1.24,<2"]  # MVP: bfloat16 built against NumPy 1.x; 2.x support tracked in #3
 
 [project.urls]
 Homepage = "https://github.com/stillwater-sc/universal_dtypes"
@@ -19,7 +24,7 @@ Universal = "https://github.com/stillwater-sc/universal"
 
 [project.optional-dependencies]
 pandas = ["pandas>=2.0"]
-dev = ["pytest>=7.0", "numpy>=1.24"]
+dev = ["pytest>=7.0", "numpy>=1.24,<2", "ml_dtypes"]
 
 [tool.scikit-build]
 cmake.build-type = "Release"

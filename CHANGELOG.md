@@ -14,6 +14,12 @@ semantic-release manages the **patch** component.
 
 ### Added
 
+- **`bfloat16` NumPy dtype (MVP, issue #3).** Register `universal_dtypes.bfloat16`
+  as a NumPy dtype via the legacy user-dtype C-API: array creation, casts to/from
+  float32/float64/int, element-wise `+ - * /`, `negative`/`absolute`, comparisons,
+  and reductions. Rounding + arithmetic are cross-validated bit-for-bit against
+  `ml_dtypes.bfloat16`. Built against NumPy 1.x (runtime pinned `numpy<2` for now;
+  NumPy 2.x support and the remaining ufuncs/sort/pickling/pandas are tracked in #3).
 - Project scaffold: packaging (scikit-build-core + nanobind, fetching the
   Universal headers), a minimal `_core` extension proving the build wiring
   (`posit16_roundtrip`, `build_info`), CI (lint + build/test matrix), and the
