@@ -66,9 +66,9 @@ import numpy as np
 import universal_dtypes
 
 a = np.array([1.0, 2.0, 3.0], dtype=universal_dtypes.posit16)
-b = a * 2                    # element-wise arithmetic, in posit16
-c = np.sum(a)                # NumPy reductions (naive posit accumulation)
-n = np.sqrt(a)               # NumPy ufuncs
+b = a * 2  # element-wise arithmetic, in posit16
+c = np.sum(a)  # NumPy reductions (naive posit accumulation)
+n = np.sqrt(a)  # NumPy ufuncs
 ```
 
 The dtypes also register under their string names, so NumPy's usual APIs accept
@@ -139,7 +139,7 @@ import numpy as np
 import universal_dtypes
 
 x = np.ones(4096, dtype=universal_dtypes.posit16)
-np.sum(x)          # rounds each partial sum in posit16 — not 4096 exactly
+np.sum(x)  # rounds each partial sum in posit16 — not 4096 exactly
 ```
 
 The standard fix is to accumulate in higher precision. Universal's posits also
@@ -153,6 +153,7 @@ the dtype; when you need an exact reduction, reach for MTL5:
 
 ```python
 import mtl5
+
 # exact posit16 sum-of-products via the quire (single final rounding)
 mtl5.dot(x, np.ones_like(x), accumulator="quire")
 ```
