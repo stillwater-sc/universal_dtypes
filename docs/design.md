@@ -221,6 +221,20 @@ decision to *implement* `universal_dtypes` should be pulled by a real consumer:
 Absent such a pull, the layering argument still stands, but the ~40k-line,
 maintenance-heavy reality argues for waiting rather than building speculatively.
 
+## `bfloat16` and the `cfloat` family
+
+`bfloat16` is numerically a `cfloat<16,8,…>` configuration, so it could in
+principle be registered through the same `cfloat` codegen table (issue #8).
+It deliberately is **not**: `bfloat16` keeps its own standalone implementation
+(backed by Universal's dedicated `sw::universal::bfloat16`) because it is the one
+config with a first-class `ml_dtypes` counterpart, and pinning it to that
+implementation keeps the bit-for-bit `ml_dtypes.bfloat16` oracle tests as the
+contract. The `cfloat` family (`fp16`, `fp8e5m2`, …) and `bfloat16` therefore
+coexist without duplicating each other — both ride the shared NEP-42 harness
+(`universal_dtype.hpp`), just via different traits. If a future need arises to
+unify them, do it explicitly (and keep the `ml_dtypes` oracle green), rather than
+silently having two `cfloat<16,8>` dtypes.
+
 ## Open decisions
 
 1. **Binding tech:** follow `ml_dtypes` (NumPy C API directly) or use nanobind as

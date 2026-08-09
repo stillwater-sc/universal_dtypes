@@ -14,15 +14,22 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **Dtype discoverability registries (issue #16, Stage 3).** `universal_dtypes.dtypes`
-  (name → scalar type for every registered dtype) and `universal_dtypes.posit_dtypes`
-  (the posit family) make the compiled-in set programmatically enumerable —
-  `list(ud.dtypes)`, `np.dtype(ud.dtypes["posit12"])`.
-- **`docs/dtypes.md`** — reference for the shipped dtypes: the posit config table
-  (widths, `es`, itemsize), the `posit{nbits}` / `posit{nbits}e{es}` naming
-  convention, NaR semantics, and the one-line recipe for adding a config. Records
-  the deliberate curation of the default set (the full `nbits × es` matrix is not
-  instantiated, to bound binary size and compile time).
+- **`cfloat` NumPy dtypes: `fp16` and `fp8e5m2` (issue #8).** Universal's
+  configurable float bound through the harness, both chosen for exact parity:
+  `fp16` (`cfloat<16,5>`) is bit-compatible with `numpy.float16`, and `fp8e5m2`
+  (`cfloat<8,5>`) with `ml_dtypes.float8_e5m2` (validated over the full domain).
+  A `cfloat_dtypes` registry joins `posit_dtypes` in `dtypes`.
+- **`isinf` and `isfinite` ufuncs** for every harness dtype (via a new `is_inf`
+  trait: IEEE inf for bfloat16/cfloat, always false for posit which has NaR and no
+  infinity). `isnan` already existed.
+
+### Notes
+
+- `e4m3` is intentionally not shipped: no Universal type is bit-exact with
+  `ml_dtypes.float8_e4m3fn`. Tracked as #19.
+- `bfloat16` (numerically a `cfloat<16,8>`) keeps its dedicated standalone
+  implementation for `ml_dtypes` parity rather than joining the `cfloat` family —
+  documented in [`docs/design.md`](docs/design.md).
 
 <!-- version list -->
 

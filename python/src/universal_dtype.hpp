@@ -23,6 +23,7 @@
 //     static cpp_t       from_double(double);      // round a real into the type
 //     static double      to_double(const cpp_t&);  // convert back to double
 //     static bool        is_nan(const cpp_t&);     // IEEE NaN / posit NaR
+//     static bool        is_inf(const cpp_t&);     // IEEE inf (false if none, e.g. posit)
 //
 // Arithmetic and comparisons are sourced from cpp_t's own operators, so the
 // dtype's numerics are exactly the Universal type's — the whole point of the
@@ -444,20 +445,26 @@ struct UniversalDType {
         return 0;
     }
 
-    // isnan → the type's exceptional value (IEEE NaN / posit NaR).
-    static int isnan_loop(PyArrayMethod_Context*, char* const data[], npy_intp const dims[],
-                          npy_intp const strides[], NpyAuxData*) {
+    // Special-value predicates. is_nan is the type's NaN/NaR; is_inf is the
+    // type's infinity (false for types without one, e.g. posit); isfinite is the
+    // complement of both. Each writes an npy_bool output.
+    template <bool (*Pred)(const cpp_t&)>
+    static int predicate_loop(PyArrayMethod_Context*, char* const data[], npy_intp const dims[],
+                              npy_intp const strides[], NpyAuxData*) {
         npy_intp N = dims[0];
         char *i0 = data[0], *o = data[1];
         while (N--) {
             storage_t a;
             std::memcpy(&a, i0, ELSIZE);
-            npy_bool r = Traits::is_nan(Traits::from_bits(a)) ? NPY_TRUE : NPY_FALSE;
+            npy_bool r = Pred(Traits::from_bits(a)) ? NPY_TRUE : NPY_FALSE;
             std::memcpy(o, &r, sizeof(npy_bool));
             i0 += strides[0]; o += strides[1];
         }
         return 0;
     }
+    static bool pred_isnan(const cpp_t& v) { return Traits::is_nan(v); }
+    static bool pred_isinf(const cpp_t& v) { return Traits::is_inf(v); }
+    static bool pred_isfinite(const cpp_t& v) { return !Traits::is_nan(v) && !Traits::is_inf(v); }
 
     static cpp_t op_add(cpp_t a, cpp_t b) { return a + b; }
     static cpp_t op_sub(cpp_t a, cpp_t b) { return a - b; }
@@ -559,7 +566,13 @@ struct UniversalDType {
         if (add_ufunc("true_divide", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_div>)) return -1;
         if (add_ufunc("negative", tt, 1, 1, (PyArrayMethod_StridedLoop*)&unary_loop<op_neg>)) return -1;
         if (add_ufunc("absolute", tt, 1, 1, (PyArrayMethod_StridedLoop*)&unary_loop<op_abs>)) return -1;
-        if (add_ufunc("isnan", to, 1, 1, (PyArrayMethod_StridedLoop*)&isnan_loop)) return -1;
+        if (add_ufunc("isnan", to, 1, 1, (PyArrayMethod_StridedLoop*)&predicate_loop<pred_isnan>))
+            return -1;
+        if (add_ufunc("isinf", to, 1, 1, (PyArrayMethod_StridedLoop*)&predicate_loop<pred_isinf>))
+            return -1;
+        if (add_ufunc("isfinite", to, 1, 1,
+                      (PyArrayMethod_StridedLoop*)&predicate_loop<pred_isfinite>))
+            return -1;
         if (add_ufunc("equal", tto, 2, 1, (PyArrayMethod_StridedLoop*)&cmp_loop<cmp_eq>)) return -1;
         if (add_ufunc("not_equal", tto, 2, 1, (PyArrayMethod_StridedLoop*)&cmp_loop<cmp_ne>)) return -1;
         if (add_ufunc("less", tto, 2, 1, (PyArrayMethod_StridedLoop*)&cmp_loop<cmp_lt>)) return -1;

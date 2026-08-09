@@ -56,6 +56,7 @@ struct PositTraitsBase {
     static cpp_t from_double(double d) { return cpp_t(d); }
     static double to_double(const cpp_t& v) { return static_cast<double>(v); }
     static bool is_nan(const cpp_t& v) { return v.isnar(); }
+    static bool is_inf(const cpp_t&) { return false; }  // posit has NaR, no infinity
 };
 
 // The shipped set. One line per config; `es < nbits` is enforced at compile time.

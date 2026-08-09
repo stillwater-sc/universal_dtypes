@@ -8,6 +8,8 @@ Provides NumPy 2.x custom dtypes backed by Universal's C++ number types:
   ``posit16e1`` and the non-power-of-two widths ``posit12``/``20``/``24``/``28``/
   ``40``/``48``). The ``posit{nbits}e{es}`` name form selects the exponent size;
   bare ``posit{nbits}`` is ``es=2``.
+- ``fp16`` (IEEE half) and ``fp8e5m2`` — configurable floats (``cfloat``),
+  bit-compatible with ``numpy.float16`` and ``ml_dtypes.float8_e5m2``.
 
 Each dtype supports array creation, casts, element-wise arithmetic and math
 ufuncs, comparisons, reductions, sort, and pickling. Use them like any dtype::
@@ -35,6 +37,8 @@ except _PackageNotFoundError:
 
 from universal_dtypes._core import (  # noqa: E402
     Bfloat16DType,
+    Fp8e5m2DType,
+    Fp16DType,
     Posit8DType,
     Posit8e0DType,
     Posit8e1DType,
@@ -50,6 +54,8 @@ from universal_dtypes._core import (  # noqa: E402
     Posit64DType,
     bfloat16,
     build_info,
+    fp8e5m2,
+    fp16,
     posit8,
     posit8e0,
     posit8e1,
@@ -86,7 +92,12 @@ posit_dtypes = {
     "posit48": posit48,
 }
 
-dtypes = {"bfloat16": bfloat16, **posit_dtypes}
+cfloat_dtypes = {
+    "fp16": fp16,
+    "fp8e5m2": fp8e5m2,
+}
+
+dtypes = {"bfloat16": bfloat16, **cfloat_dtypes, **posit_dtypes}
 
 __all__ = [
     "__version__",
@@ -94,8 +105,14 @@ __all__ = [
     "Bfloat16DType",
     "build_info",
     "dtypes",
+    "cfloat_dtypes",
     "posit_dtypes",
     "posit16_roundtrip",
+    # cfloat scalar types + dtype classes
+    "fp16",
+    "fp8e5m2",
+    "Fp16DType",
+    "Fp8e5m2DType",
     # posit scalar types
     "posit8",
     "posit16",

@@ -17,7 +17,8 @@ endif()
 nanobind_add_module(_core
     src/universal_dtypes_module.cpp
     src/bfloat16.cpp
-    src/posit.cpp)
+    src/posit.cpp
+    src/cfloat.cpp)
 
 # Header-only Universal number systems.
 target_link_libraries(_core PRIVATE universal)
