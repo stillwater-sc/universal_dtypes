@@ -14,13 +14,13 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **ML application study: `applications/ml/quantized_mlp.py`.** Runs one fixed
-  2-layer MLP forward pass across number systems and compares to a float32
-  reference (argmax agreement + logit error). Shows 16-bit types
-  (posit16/fp16/bfloat16) give float32-level decisions at half the memory, while
-  8-bit types (fp8e5m2/posit8) quarter the memory at a real accuracy cost — with
-  posit8's tapered precision beating fp8e5m2 on this workload. (Uses the
-  registered elementwise multiply + sum reduction for matmul — no BLAS needed.)
+- **Control application study: `applications/control/kalman_precision.py`.** Runs
+  the same constant-velocity Kalman filter in several formats and reports position
+  RMSE against ground truth. fp8e5m2 diverges catastrophically (~44 vs float64's
+  ~0.14) and even bfloat16 degrades the estimate *below the raw sensor* — the
+  `P = (I - K H) P` covariance recursion is cancellation-prone and needs the
+  mantissa bits fp16/posit16 have and bfloat16/fp8 don't. A concrete warning
+  against "just quantize the filter to fp16/fp8."
 
 <!-- version list -->
 
