@@ -23,6 +23,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.15.0 (2026-08-09)
+
+### Features
+
+- **dtype**: TI/ADI DSP fixed-point formats (q7/q15/q31/iq24/q5_23)
+  ([#32](https://github.com/stillwater-sc/universal_dtypes/pull/32),
+  [`053b45e`](https://github.com/stillwater-sc/universal_dtypes/commit/053b45e66475e7618e892b0a7074507305cf1c4d))
+
+
 ## v0.14.0 (2026-08-09)
 
 ### Features
