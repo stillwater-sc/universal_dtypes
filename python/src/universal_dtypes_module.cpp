@@ -36,6 +36,7 @@ void register_lns(nb::module_& m);       // python/src/lns.cpp
 void register_dd_cascade(nb::module_& m); // python/src/dd.cpp
 void register_td_cascade(nb::module_& m); // python/src/td.cpp
 void register_qd_cascade(nb::module_& m); // python/src/qd.cpp
+void register_fixpnts(nb::module_& m);    // python/src/fixpnt.cpp
 
 NB_MODULE(_core, m) {
     if (_import_array() < 0) throw std::runtime_error("numpy multiarray import failed");
@@ -48,6 +49,7 @@ NB_MODULE(_core, m) {
     register_dd_cascade(m);
     register_td_cascade(m);
     register_qd_cascade(m);
+    register_fixpnts(m);
 
     m.doc() = "universal_dtypes core — NumPy dtypes for the Universal number systems";
     m.attr("__version__") = UNIVERSAL_DTYPES_VERSION;

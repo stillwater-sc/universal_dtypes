@@ -13,6 +13,8 @@ Provides NumPy 2.x custom dtypes backed by Universal's C++ number types:
 - ``lns16`` / ``lns32`` — logarithmic number system (``lns<16,8>`` / ``lns<32,16>``):
   multiply/divide are exact in the exponent; add/subtract use Universal's
   Gaussian-log routines.
+- ``fixpnt16`` / ``fixpnt8`` — saturating fixed-point (Q8.8 / Q4.4): uniform
+  resolution and exact addition within range (DSP).
 - ``dd_cascade`` / ``td_cascade`` / ``qd_cascade`` — double-double (~106-bit,
   16-byte), triple-double (~159-bit, 24-byte), and quad-double (~212-bit, 32-byte)
   high-precision types; arithmetic uses error-free transformations.
@@ -44,6 +46,8 @@ except _PackageNotFoundError:
 from universal_dtypes._core import (  # noqa: E402
     Bfloat16DType,
     DdCascadeDType,
+    Fixpnt8DType,
+    Fixpnt16DType,
     Fp8e5m2DType,
     Fp16DType,
     Lns16DType,
@@ -66,6 +70,8 @@ from universal_dtypes._core import (  # noqa: E402
     bfloat16,
     build_info,
     dd_cascade,
+    fixpnt8,
+    fixpnt16,
     fp8e5m2,
     fp16,
     lns16,
@@ -118,6 +124,11 @@ lns_dtypes = {
     "lns32": lns32,
 }
 
+fixpnt_dtypes = {
+    "fixpnt16": fixpnt16,
+    "fixpnt8": fixpnt8,
+}
+
 # high-precision cascades (multi-word storage): the complete dd/td/qd family.
 cascade_dtypes = {
     "dd_cascade": dd_cascade,
@@ -125,7 +136,14 @@ cascade_dtypes = {
     "qd_cascade": qd_cascade,
 }
 
-dtypes = {"bfloat16": bfloat16, **cfloat_dtypes, **posit_dtypes, **lns_dtypes, **cascade_dtypes}
+dtypes = {
+    "bfloat16": bfloat16,
+    **cfloat_dtypes,
+    **posit_dtypes,
+    **lns_dtypes,
+    **fixpnt_dtypes,
+    **cascade_dtypes,
+}
 
 __all__ = [
     "__version__",
@@ -135,9 +153,15 @@ __all__ = [
     "dtypes",
     "cfloat_dtypes",
     "lns_dtypes",
+    "fixpnt_dtypes",
     "cascade_dtypes",
     "posit_dtypes",
     "posit16_roundtrip",
+    # fixpnt scalar types + dtype classes
+    "fixpnt16",
+    "fixpnt8",
+    "Fixpnt16DType",
+    "Fixpnt8DType",
     # cascade (high-precision) types
     "dd_cascade",
     "DdCascadeDType",
