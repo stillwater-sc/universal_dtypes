@@ -39,6 +39,16 @@ if(NOT NUMPY_INCLUDE_RESULT EQUAL 0)
 endif()
 target_include_directories(_core PRIVATE ${NUMPY_INCLUDE_DIR})
 
+# npymath (static) provides the IEEE half<->double helpers used by the float16
+# casts. It lives beside the headers: <numpy>/{_core,core}/lib. find_library
+# resolves libnpymath.a (gcc/clang) or npymath.lib (MSVC).
+get_filename_component(NUMPY_CORE_DIR "${NUMPY_INCLUDE_DIR}" DIRECTORY)
+find_library(NPYMATH_LIB npymath PATHS "${NUMPY_CORE_DIR}/lib" NO_DEFAULT_PATH)
+if(NOT NPYMATH_LIB)
+    message(FATAL_ERROR "Could not locate npymath in ${NUMPY_CORE_DIR}/lib")
+endif()
+target_link_libraries(_core PRIVATE ${NPYMATH_LIB})
+
 # Inject the package version from pyproject.toml (scikit-build-core sets
 # SKBUILD_PROJECT_VERSION). A bare `cmake -S . -B build` has no package metadata,
 # so it falls back to the "0.0.0-dev" sentinel.
