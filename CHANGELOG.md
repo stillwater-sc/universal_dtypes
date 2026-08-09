@@ -32,6 +32,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.14.0 (2026-08-09)
+
+### Features
+
+- **examples**: Application study — dsp/fixed_point_integrator; fix changelog marker
+  ([#31](https://github.com/stillwater-sc/universal_dtypes/pull/31),
+  [`675fea5`](https://github.com/stillwater-sc/universal_dtypes/commit/675fea5006d73a98f6793f5bcbc27d961a754d76))
+
+
 ## v0.13.0 (2026-08-09)
 
 ### Features
