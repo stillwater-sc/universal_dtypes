@@ -14,12 +14,12 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **Vendor-format application studies for `iq24` and `q5_23`.**
-  `applications/control/iqmath_pid.py` — a TI IQmath-style PI control loop where
-  `iq24` (Q8.24) has the range *and* precision to regulate a setpoint of 10 and
-  match float64, while `q15`'s ±1 range cannot. `applications/dsp/sigmadsp_audio.py`
-  — an ADI SigmaDSP-style audio pipeline where `q5_23` (5.23) delivers ~136 dB
-  fidelity and passes an above-unity channel mix that `q15` clips.
+- **DSP study: `applications/dsp/iir_limit_cycles.py` (issue #34).** Drives a
+  resonant biquad with an impulse then zeros and watches the tail: fixed-point
+  `q15` gets trapped in a dead-band **limit cycle** (~2e-4, never reaches zero),
+  the classic recursive-filter hazard; `q31` shrinks it ~10⁵× but doesn't
+  eliminate it; and float-exponent formats (`bfloat16`, `float64`) ring down
+  cleanly — so it's a fixed-point-grid effect, not a bit-width one.
 
 <!-- version list -->
 
