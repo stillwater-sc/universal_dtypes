@@ -147,11 +147,14 @@ def test_classes_exposed_for_reexport():
 # ---- the core stays pandas-free ---------------------------------------------
 
 
-def test_core_import_does_not_import_pandas():
+def test_core_import_does_not_import_pandas(tmp_path):
+    # run from a neutral cwd so the *installed* package is imported, not the
+    # source tree (which lacks the compiled _core in a non-editable install)
     r = subprocess.run(
         [sys.executable, "-c", "import sys, universal_dtypes; print('pandas' in sys.modules)"],
         capture_output=True,
         text=True,
+        cwd=str(tmp_path),
     )
-    assert r.returncode == 0
+    assert r.returncode == 0, r.stderr
     assert r.stdout.strip() == "False"
