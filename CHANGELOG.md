@@ -28,6 +28,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.8.0 (2026-08-09)
+
+### Features
+
+- **dtype**: Qd_cascade (quad-double) high-precision dtype
+  ([#24](https://github.com/stillwater-sc/universal_dtypes/pull/24),
+  [`3a9ee31`](https://github.com/stillwater-sc/universal_dtypes/commit/3a9ee31a35f71ab164eba39b7a9030d49ebd05d2))
+
+
 ## v0.7.0 (2026-08-09)
 
 ### Features
