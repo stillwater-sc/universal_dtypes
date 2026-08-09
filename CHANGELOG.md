@@ -33,6 +33,27 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.19.0 (2026-08-09)
+
+### Code Style
+
+- **docs**: Ruff-format the dtypes.md cast example
+  ([#44](https://github.com/stillwater-sc/universal_dtypes/pull/44),
+  [`e0dc2c0`](https://github.com/stillwater-sc/universal_dtypes/commit/e0dc2c079c0416064a75535729bbc76d98d7f289))
+
+### Documentation
+
+- **release**: Document the major-release procedure and the yanked-1.0.0 rule
+  ([#37](https://github.com/stillwater-sc/universal_dtypes/pull/37),
+  [`ebeeb03`](https://github.com/stillwater-sc/universal_dtypes/commit/ebeeb03536453d1e648d71dce10f985cb8afe073))
+
+### Features
+
+- **dtype**: Cross-dtype casts between universal dtypes (cascade-mediated)
+  ([#44](https://github.com/stillwater-sc/universal_dtypes/pull/44),
+  [`e0dc2c0`](https://github.com/stillwater-sc/universal_dtypes/commit/e0dc2c079c0416064a75535729bbc76d98d7f289))
+
+
 ## v0.18.0 (2026-08-09)
 
 ### Features
