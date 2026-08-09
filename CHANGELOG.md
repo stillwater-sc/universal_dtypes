@@ -14,12 +14,13 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **Application studies (`examples/applications/`), starting with math.** A second
-  axis of examples that compare two or more number systems on a real problem.
-  First study: `applications/math/rump.py` — Rump's classic expression, where
-  float64 is astronomically wrong *and even double-double gives the wrong sign*;
-  triple-double is the first precision that recovers the true value. More domains
-  (DSP, ML, control) follow.
+- **ML application study: `applications/ml/quantized_mlp.py`.** Runs one fixed
+  2-layer MLP forward pass across number systems and compares to a float32
+  reference (argmax agreement + logit error). Shows 16-bit types
+  (posit16/fp16/bfloat16) give float32-level decisions at half the memory, while
+  8-bit types (fp8e5m2/posit8) quarter the memory at a real accuracy cost — with
+  posit8's tapered precision beating fp8e5m2 on this workload. (Uses the
+  registered elementwise multiply + sum reduction for matmul — no BLAS needed.)
 
 <!-- version list -->
 

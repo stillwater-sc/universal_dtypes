@@ -34,8 +34,9 @@ under [`applications/`](applications/).
 | study | domain | number systems | what it shows |
 |-------|--------|----------------|---------------|
 | [`applications/math/rump.py`](applications/math/rump.py) | math | float32/64, dd/td/qd | Rump's example: float64 *and* double-double are wrong; triple-double is the first precision that solves it |
+| [`applications/ml/quantized_mlp.py`](applications/ml/quantized_mlp.py) | ml | float32, bf16/fp16/posit16, fp8e5m2/posit8 | quantized MLP inference: 16-bit is ~lossless at half the memory; 8-bit trades accuracy for 4× size (posit8 > fp8e5m2) |
 
-More application studies (DSP, ML, control) are being added the same way — a
+More application studies (DSP, control) are being added the same way — a
 subdirectory per domain, each script self-asserting and CI-run.
 
 Examples that need MTL5's accelerated linear-algebra solvers belong in
