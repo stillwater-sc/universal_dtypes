@@ -7,7 +7,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "universal_dtypes"
-version = "0.22.0"
+version = "0.22.1"
 description = "NumPy dtypes for the Stillwater Universal number systems (posit, cfloat, fixpnt, lns)"
 readme = "README.md"
 license = { text = "MIT" }

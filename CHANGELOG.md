@@ -24,6 +24,25 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.22.1 (2026-08-09)
+
+### Bug Fixes
+
+- **test**: Don't invoke byteswap/newbyteorder (segfaults on older NumPy 2.x)
+  ([#51](https://github.com/stillwater-sc/universal_dtypes/pull/51),
+  [`721c918`](https://github.com/stillwater-sc/universal_dtypes/commit/721c9186326c6a39d70fcba49d821e6712d7e418))
+
+### Documentation
+
+- **dtype**: Persistence & byte-order contract (native-endian only)
+  ([#51](https://github.com/stillwater-sc/universal_dtypes/pull/51),
+  [`721c918`](https://github.com/stillwater-sc/universal_dtypes/commit/721c9186326c6a39d70fcba49d821e6712d7e418))
+
+- **dtype**: Pin the persistence & byte-order contract (native-endian only)
+  ([#51](https://github.com/stillwater-sc/universal_dtypes/pull/51),
+  [`721c918`](https://github.com/stillwater-sc/universal_dtypes/commit/721c9186326c6a39d70fcba49d821e6712d7e418))
+
+
 ## v0.22.0 (2026-08-09)
 
 ### Features
