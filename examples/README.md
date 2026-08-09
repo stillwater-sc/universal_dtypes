@@ -36,9 +36,10 @@ under [`applications/`](applications/).
 | [`applications/math/rump.py`](applications/math/rump.py) | math | float32/64, dd/td/qd | Rump's example: float64 *and* double-double are wrong; triple-double is the first precision that solves it |
 | [`applications/ml/quantized_mlp.py`](applications/ml/quantized_mlp.py) | ml | float32, bf16/fp16/posit16, fp8e5m2/posit8 | quantized MLP inference: 16-bit is ~lossless at half the memory; 8-bit trades accuracy for 4× size (posit8 > fp8e5m2) |
 | [`applications/control/kalman_precision.py`](applications/control/kalman_precision.py) | control | float64, fp16/posit16, bfloat16, fp8e5m2 | Kalman filter in low precision: fp8 diverges and even bfloat16 degrades below the raw sensor; the covariance recursion needs mantissa bits |
+| [`applications/dsp/fixed_point_integrator.py`](applications/dsp/fixed_point_integrator.py) | dsp | fixpnt16, fp16/posit16, bfloat16 | an integrator: fixed-point adds exactly within range while floating point drifts — and bfloat16 stalls (swamping) |
 
-More application studies (DSP) are being added the same way — a subdirectory per
-domain, each script self-asserting and CI-run.
+To add an application study, drop a script into `examples/applications/<domain>/`
+(same conventions: clear docstring, self-asserting) — the CI runner picks it up.
 
 Examples that need MTL5's accelerated linear-algebra solvers belong in
 [`mtl5-python`](https://github.com/stillwater-sc/mtl5-python), not here — this set

@@ -14,11 +14,32 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **`fixpnt16` / `fixpnt8` NumPy dtypes (issue #29)** — Universal's saturating
-  fixed-point (Q8.8 / Q4.4) via the harness: uniform absolute resolution, exact
-  addition within range, saturation on overflow, and no NaN/Inf. Fills the
-  README-spec gap and joins a new `fixpnt_dtypes` registry. Enables the DSP
-  application study to come.
+- **DSP application study: `applications/dsp/fixed_point_integrator.py`.** Runs a
+  sample-by-sample integrator across formats. `fixpnt16` integrates *exactly*
+  (fixed-point addition is exact within range) while `fp16`/`posit16` drift and
+  `bfloat16` stalls entirely (swamping — once a sample is below the accumulator's
+  ULP, the sum stops growing). This completes the math/dsp/ml/control application
+  set (`examples/applications/`), each comparing two or more number systems on a
+  real problem.
+
+### Fixed
+
+- Restore the changelog version-list insertion marker (an HTML comment
+  semantic-release inserts each release at), accidentally dropped in the 0.13.0
+  entry — which left semantic-release without an insertion point, so 0.13.0
+  shipped without a changelog section. The `v0.13.0` section below is added by
+  hand; auto-generation works again from here.
+
+<!-- version list -->
+
+## v0.13.0 (2026-08-09)
+
+### Features
+
+- **dtype**: Fixpnt16 + fixpnt8 saturating fixed-point dtypes
+  ([#30](https://github.com/stillwater-sc/universal_dtypes/pull/30),
+  [`a4d3600`](https://github.com/stillwater-sc/universal_dtypes/commit/a4d36001b1a8aef9db0711534c9dd74e58e4506c))
+
 
 ## v0.12.0 (2026-08-09)
 
