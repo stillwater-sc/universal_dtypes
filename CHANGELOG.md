@@ -24,6 +24,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.21.0 (2026-08-09)
+
+### Features
+
+- **dtype**: Scalar __hash__ and float16 casts
+  ([#46](https://github.com/stillwater-sc/universal_dtypes/pull/46),
+  [`25ad912`](https://github.com/stillwater-sc/universal_dtypes/commit/25ad9125a4a9749d4d9d9085aa7e64cad648f43f))
+
+
 ## v0.20.0 (2026-08-09)
 
 ### Features
