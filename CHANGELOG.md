@@ -32,6 +32,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.6.0 (2026-08-09)
+
+### Features
+
+- **dtype**: Dd_cascade (double-double) high-precision dtype
+  ([#22](https://github.com/stillwater-sc/universal_dtypes/pull/22),
+  [`d2311cd`](https://github.com/stillwater-sc/universal_dtypes/commit/d2311cdd747e113a62d99904ccf3098b6895ba95))
+
+
 ## v0.5.0 (2026-08-09)
 
 ### Features
