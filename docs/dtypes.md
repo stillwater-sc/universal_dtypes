@@ -21,9 +21,9 @@ NumPy types:
 
 ```python
 a = np.array([1.5, 2.25], dtype=ud.posit16)
-a.astype(ud.posit32)      # posit -> posit
-a.astype(ud.bfloat16)     # across number systems
-a.astype(ud.dd_cascade)   # into a high-precision cascade
+a.astype(ud.posit32)  # posit -> posit
+a.astype(ud.bfloat16)  # across number systems
+a.astype(ud.dd_cascade)  # into a high-precision cascade
 ```
 
 Casts convert in the **value domain** (the represented real number), not by
