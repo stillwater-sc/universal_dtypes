@@ -25,6 +25,21 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.23.0 (2026-08-09)
+
+### Bug Fixes
+
+- **test**: Run the pandas-free import check from a neutral cwd
+  ([#52](https://github.com/stillwater-sc/universal_dtypes/pull/52),
+  [`43875b2`](https://github.com/stillwater-sc/universal_dtypes/commit/43875b28dd75637a173bd7b4ed62ff9c6cd773ca))
+
+### Features
+
+- **pandas**: Pandas ExtensionDtype/ExtensionArray for every universal dtype
+  ([#52](https://github.com/stillwater-sc/universal_dtypes/pull/52),
+  [`43875b2`](https://github.com/stillwater-sc/universal_dtypes/commit/43875b28dd75637a173bd7b4ed62ff9c6cd773ca))
+
+
 ## v0.22.1 (2026-08-09)
 
 ### Bug Fixes
