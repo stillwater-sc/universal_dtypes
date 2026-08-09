@@ -37,6 +37,7 @@ under [`applications/`](applications/).
 | [`applications/ml/quantized_mlp.py`](applications/ml/quantized_mlp.py) | ml | float32, bf16/fp16/posit16, fp8e5m2/posit8 | quantized MLP inference: 16-bit is ~lossless at half the memory; 8-bit trades accuracy for 4× size (posit8 > fp8e5m2) |
 | [`applications/control/kalman_precision.py`](applications/control/kalman_precision.py) | control | float64, fp16/posit16, bfloat16, fp8e5m2 | Kalman filter in low precision: fp8 diverges and even bfloat16 degrades below the raw sensor; the covariance recursion needs mantissa bits |
 | [`applications/dsp/fixed_point_integrator.py`](applications/dsp/fixed_point_integrator.py) | dsp | fixpnt16, fp16/posit16, bfloat16 | an integrator: fixed-point adds exactly within range while floating point drifts — and bfloat16 stalls (swamping) |
+| [`applications/dsp/fir_coefficient_quantization.py`](applications/dsp/fir_coefficient_quantization.py) | dsp | q7 / q15 / q31 | FIR taps in the DSP Q-formats: q15/q31 preserve the filter (why 16-bit DSPs work); q7 wrecks the stopband |
 
 To add an application study, drop a script into `examples/applications/<domain>/`
 (same conventions: clear docstring, self-asserting) — the CI runner picks it up.
