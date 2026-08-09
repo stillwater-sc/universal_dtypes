@@ -20,10 +20,11 @@ The set of dtypes is compiled in, so these registries are the source of truth fo
 what a given build ships:
 
 ```python
-ud.dtypes  # {"bfloat16": ..., "fp16": ..., "posit8": ..., "lns16": ...}  every dtype
+ud.dtypes  # {"bfloat16": ..., "fp16": ..., "posit8": ..., "dd_cascade": ...}  every dtype
 ud.posit_dtypes  # just the posit family
 ud.cfloat_dtypes  # just the cfloat family (fp16, fp8e5m2)
 ud.lns_dtypes  # just the lns family (lns16, lns32)
+ud.cascade_dtypes  # high-precision cascades (dd_cascade; td/qd to come)
 list(ud.dtypes)  # the names
 np.dtype(ud.dtypes["posit12"])  # -> dtype(posit12)
 ```
@@ -37,6 +38,34 @@ np.dtype(ud.dtypes["posit12"])  # -> dtype(posit12)
 Bit-for-bit compatible with `ml_dtypes.bfloat16`. When `ml_dtypes` is also
 installed it owns the `"bfloat16"` string name (we don't clobber it); pickling is
 unaffected because it round-trips through the scalar type, not the name.
+
+## cascades (high precision)
+
+Floating-point *expansions*: a value is an unevaluated sum of several IEEE
+`double`s, giving many more bits of significand without arbitrary-precision
+overhead. Arithmetic uses error-free transformations (two-sum / two-prod).
+`ml_dtypes` has nothing like this.
+
+| config | representation | itemsize | significand |
+|--------|----------------|---------:|-------------|
+| `dd_cascade` | double-double (2 × float64) | 16 | ~106 bits (~31 decimal digits) |
+
+(`td_cascade` / `qd_cascade` — triple/quad-double — will follow, reusing the same
+multi-word storage.)
+
+These are the first **multi-word** dtypes (itemsize > one scalar word). Two
+precision-aware rules apply:
+
+- **Casts are lossy on the way out, exact on the way in:** `float64 → dd_cascade`
+  is exact, but `dd_cascade → float64` is marked **unsafe** (it drops the low
+  limbs). `astype` still performs it.
+- **Comparisons and sort run at full precision** (via the type's own operators),
+  so two values that differ below `float64` precision still order correctly —
+  unlike a naive compare through `float64`.
+
+Reductions (`sum`, `prod`) accumulate *in the expansion* — that extra precision is
+the point. This is distinct from `mtl5`'s quire-based exact accumulation, which
+stays in `mtl5` (see [`design.md`](design.md)).
 
 ## cfloat (configurable float)
 
