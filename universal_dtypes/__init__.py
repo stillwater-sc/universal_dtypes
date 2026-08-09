@@ -21,9 +21,31 @@ except _PackageNotFoundError:
 
 from universal_dtypes._core import (  # noqa: E402
     Bfloat16DType,
+    Posit8DType,
+    Posit16DType,
+    Posit32DType,
+    Posit64DType,
     bfloat16,
     build_info,
+    posit8,
+    posit16,
     posit16_roundtrip,
+    posit32,
+    posit64,
 )
 
-__all__ = ["__version__", "Bfloat16DType", "bfloat16", "build_info", "posit16_roundtrip"]
+__all__ = [
+    "__version__",
+    "Bfloat16DType",
+    "Posit8DType",
+    "Posit16DType",
+    "Posit32DType",
+    "Posit64DType",
+    "bfloat16",
+    "build_info",
+    "posit8",
+    "posit16",
+    "posit32",
+    "posit64",
+    "posit16_roundtrip",
+]

@@ -12,20 +12,31 @@ semantic-release manages the **patch** component.
 
 ## [Unreleased]
 
+### Added
+
+- **`posit8/16/32/64` NumPy dtypes + a reusable templated-type harness
+  (issue #7).** The first templated Universal type is now a NumPy dtype family:
+  `posit<nbits,2>` for the standard sizes, usable via `ud.posit16` and the string
+  name `np.dtype("posit16")`. Full arithmetic (`+ - * /`, `negative`/`absolute`),
+  NaR-aware comparisons and `isnan`, casts to/from float/int/bool, reductions, and
+  sort — all sourced from Universal's `posit<n,2>` operators. Conversion is
+  cross-validated bit-for-bit against Universal's `posit16_roundtrip` over a
+  sampled grid.
+- **`python/src/universal_dtype.hpp`** — the NEP-42 registration machinery
+  (proved by `bfloat16` in #3) lifted into a `template<typename Traits>` harness.
+  Binding a new Universal C++ number type to a NumPy dtype is now a ~10-line
+  traits struct plus a one-line `register_universal_dtype<Traits>(m)` call;
+  `cfloat` (#8) and `lns` (#9) will reuse it.
+
 ### Changed
 
-- **`bfloat16` numerics now delegate to Universal's `sw::universal::bfloat16`
-  (issue #3).** The dtype's conversions and arithmetic (`+ - * /`,
-  `negative`/`absolute`) are sourced from the Universal C++ type — the ArrayMethod
-  strided loops construct `sw::universal::bfloat16` and call its operators/
-  `bits()`/`setbits()` — instead of hand-rolled bit twiddling. This is
-  numerically identical (Universal uses the same round-to-nearest-even and
-  float-compute-then-round), still cross-validated bit-for-bit against
-  `ml_dtypes.bfloat16`, and it establishes the delegation harness that the
-  templated types (`posit<...>`, #6) reuse to bind a Universal C++ type to a
-  NumPy dtype. Closes the core of #3; remaining polish (full math ufuncs,
-  sort/argsort, pickling, `np.dtype("bfloat16")` string name, pandas extra)
-  is tracked there.
+- **`bfloat16` re-expressed through the new harness (issue #3).** No behavior
+  change (still bit-for-bit vs `ml_dtypes.bfloat16`); the ~600 lines of
+  per-type NEP-42 code collapse to a small traits struct, removing the
+  duplication that adding `posit` would otherwise have created.
+- `np.dtype("bfloat16")` now resolves by string name too (the harness registers
+  each dtype's scalar type in `numpy.sctypeDict`), closing that `bfloat16`
+  follow-up.
 
 <!-- version list -->
 
