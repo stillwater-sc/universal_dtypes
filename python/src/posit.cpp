@@ -1,11 +1,17 @@
-// posit<nbits,2> NumPy dtype family (issue #7) — the first templated Universal
-// type bound to NumPy dtypes, via the reusable NEP-42 harness
-// (universal_dtype.hpp). Each standard size is one Traits struct + one
-// register_universal_dtype<> call; adding a new posit config is a one-liner.
+// posit<nbits,es> NumPy dtype family (issues #7, #16) — the first templated
+// Universal type bound to NumPy dtypes, via the reusable NEP-42 harness
+// (universal_dtype.hpp).
 //
-// Posit specifics handled here: the single exceptional value NaR ("Not a Real")
-// maps onto isnan; float<->posit rounds to nearest posit; non-finite float ->
-// NaR. Arithmetic and comparisons come from Universal's posit operators.
+// Adding a config is one line in UD_POSIT_LIST below. `nbits` need not be a power
+// of two and need not equal the storage width: each element is stored in the
+// smallest containing unsigned integer (storage_for<nbits>), with the unused
+// high bits zero. Casts/ufuncs/pickle all go through the posit type, not raw
+// bytes, so the padding is invisible. (numpy is byte-granular, so e.g. posit12
+// occupies 2 bytes; true bit-packing is outside numpy's dtype model.)
+//
+// Naming: `posit{nbits}` is the es=2 standard; other exponent sizes are
+// `posit{nbits}e{es}` (e.g. posit8e0). Posit specifics: NaR maps onto isnan,
+// non-finite float -> NaR, float<->posit rounds to nearest posit.
 
 #include <Python.h>
 
@@ -17,6 +23,7 @@
 #define NO_IMPORT_UFUNC
 
 #include <cstdint>
+#include <type_traits>
 
 #include <universal/number/posit/posit.hpp>
 
@@ -24,17 +31,22 @@
 
 namespace {
 
-// One traits struct per standard size. `storage_t` is the uintN_t matching the
-// posit's bit width (the raw element storage in the numpy buffer); `cpp_t` is the
-// Universal posit. encoding()/setbits() move raw bits in and out.
-template <unsigned NBITS, typename Storage>
-struct PositTraitsBase {
-    using cpp_t = sw::universal::posit<NBITS, 2>;
-    using storage_t = Storage;
+// Smallest unsigned integer that holds `nbits` bits — the numpy element storage.
+template <unsigned N>
+using posit_storage_t = std::conditional_t<
+    (N <= 8), uint8_t,
+    std::conditional_t<(N <= 16), uint16_t,
+                       std::conditional_t<(N <= 32), uint32_t, uint64_t>>>;
 
-    // Avoid posit::encoding() — it calls blockbinary::to_ullong(), which doesn't
-    // exist on Universal main (the block exposes to_ull()). Read the raw block
-    // directly instead.
+// Common posit facts; each concrete config only adds its names (via UD_POSIT).
+template <unsigned NBITS, unsigned ES>
+struct PositTraitsBase {
+    static_assert(ES < NBITS, "posit requires es < nbits");
+    using cpp_t = sw::universal::posit<NBITS, ES>;
+    using storage_t = posit_storage_t<NBITS>;
+
+    // Read raw bits via bits().to_ull(); posit::encoding() is unusable on
+    // Universal main (it calls the nonexistent blockbinary::to_ullong()).
     static storage_t to_bits(const cpp_t& v) { return static_cast<storage_t>(v.bits().to_ull()); }
     static cpp_t from_bits(storage_t b) {
         cpp_t v;
@@ -46,45 +58,42 @@ struct PositTraitsBase {
     static bool is_nan(const cpp_t& v) { return v.isnar(); }
 };
 
-struct Posit8Traits : PositTraitsBase<8, uint8_t> {
-    static constexpr const char* name = "posit8";
-    static constexpr const char* scalar_tp_name = "universal_dtypes.posit8";
-    static constexpr const char* dtype_tp_name = "universal_dtypes.Posit8DType";
-    static constexpr const char* dtype_attr = "Posit8DType";
-    static constexpr const char* doc = "posit<8,2> scalar (tapered precision, NaR)";
-};
+// The shipped set. One line per config; `es < nbits` is enforced at compile time.
+// Standard es=2 sizes keep the bare `posit{nbits}` name; other configs use the
+// `posit{nbits}e{es}` form. Adding a config here is the whole change.
+#define UD_POSIT_LIST(X)          \
+    X(8, 2, "posit8", Posit8)     \
+    X(16, 2, "posit16", Posit16)  \
+    X(32, 2, "posit32", Posit32)  \
+    X(64, 2, "posit64", Posit64)  \
+    X(8, 0, "posit8e0", Posit8e0) \
+    X(8, 1, "posit8e1", Posit8e1) \
+    X(16, 1, "posit16e1", Posit16e1) \
+    X(12, 2, "posit12", Posit12)  \
+    X(20, 2, "posit20", Posit20)  \
+    X(24, 2, "posit24", Posit24)  \
+    X(28, 2, "posit28", Posit28)  \
+    X(40, 2, "posit40", Posit40)  \
+    X(48, 2, "posit48", Posit48)
 
-struct Posit16Traits : PositTraitsBase<16, uint16_t> {
-    static constexpr const char* name = "posit16";
-    static constexpr const char* scalar_tp_name = "universal_dtypes.posit16";
-    static constexpr const char* dtype_tp_name = "universal_dtypes.Posit16DType";
-    static constexpr const char* dtype_attr = "Posit16DType";
-    static constexpr const char* doc = "posit<16,2> scalar (tapered precision, NaR)";
-};
-
-struct Posit32Traits : PositTraitsBase<32, uint32_t> {
-    static constexpr const char* name = "posit32";
-    static constexpr const char* scalar_tp_name = "universal_dtypes.posit32";
-    static constexpr const char* dtype_tp_name = "universal_dtypes.Posit32DType";
-    static constexpr const char* dtype_attr = "Posit32DType";
-    static constexpr const char* doc = "posit<32,2> scalar (tapered precision, NaR)";
-};
-
-struct Posit64Traits : PositTraitsBase<64, uint64_t> {
-    static constexpr const char* name = "posit64";
-    static constexpr const char* scalar_tp_name = "universal_dtypes.posit64";
-    static constexpr const char* dtype_tp_name = "universal_dtypes.Posit64DType";
-    static constexpr const char* dtype_attr = "Posit64DType";
-    static constexpr const char* doc = "posit<64,2> scalar (tapered precision, NaR)";
-};
+#define UD_POSIT_DEFINE(NBITS, ES, SNAME, CBASE)                                        \
+    struct CBASE##Traits : PositTraitsBase<NBITS, ES> {                                 \
+        static constexpr const char* name = SNAME;                                      \
+        static constexpr const char* scalar_tp_name = "universal_dtypes." SNAME;        \
+        static constexpr const char* dtype_tp_name = "universal_dtypes." #CBASE "DType"; \
+        static constexpr const char* dtype_attr = #CBASE "DType";                       \
+        static constexpr const char* doc =                                              \
+            "posit<" #NBITS "," #ES "> scalar (tapered precision, NaR)";                \
+    };
+UD_POSIT_LIST(UD_POSIT_DEFINE)
+#undef UD_POSIT_DEFINE
 
 }  // namespace
 
 void register_posits(nb::module_& m) {
-    // Each standard size is one line — the templated-type -> dtype-family harness
-    // this issue set out to deliver. New configs (e.g. posit<10,1>) go here.
-    register_universal_dtype<Posit8Traits>(m);
-    register_universal_dtype<Posit16Traits>(m);
-    register_universal_dtype<Posit32Traits>(m);
-    register_universal_dtype<Posit64Traits>(m);
+#define UD_POSIT_REGISTER(NBITS, ES, SNAME, CBASE) register_universal_dtype<CBASE##Traits>(m);
+    UD_POSIT_LIST(UD_POSIT_REGISTER)
+#undef UD_POSIT_REGISTER
 }
+
+#undef UD_POSIT_LIST

@@ -12,6 +12,18 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ## [Unreleased]
 
+### Added
+
+- **Additional posit configurations (issue #16).** Beyond the standard `es=2`
+  family, the harness now ships `es` variants (`posit8e0`, `posit8e1`,
+  `posit16e1`) and non-power-of-two widths (`posit12`, `posit20`, `posit24`,
+  `posit28`, `posit40`, `posit48`). A `storage_for<nbits>` trait stores each in
+  the smallest containing unsigned integer (12→2 bytes, 20/24/28→4, 40/48→8), so
+  `nbits` no longer has to equal the storage width. Configs are declared in a
+  one-line-per-entry codegen table (`UD_POSIT_LIST`), with `es < nbits` enforced
+  at compile time. Naming: bare `posit{nbits}` is `es=2`; other exponent sizes
+  use `posit{nbits}e{es}`.
+
 ### Changed
 
 - **Versioning now follows conventional semver.** `feat` commits bump the

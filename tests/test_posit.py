@@ -17,6 +17,24 @@ POSITS = [
     ("posit64", ud.posit64, 8),
 ]
 
+# The full shipped set (issue #16): es variants + non-power-of-two widths. The
+# itemsize is the smallest containing uint (12->2B, 20/24/28->4B, 40/48->8B).
+POSITS_ALL = [
+    ("posit8", ud.posit8, 1),
+    ("posit16", ud.posit16, 2),
+    ("posit32", ud.posit32, 4),
+    ("posit64", ud.posit64, 8),
+    ("posit8e0", ud.posit8e0, 1),
+    ("posit8e1", ud.posit8e1, 1),
+    ("posit16e1", ud.posit16e1, 2),
+    ("posit12", ud.posit12, 2),
+    ("posit20", ud.posit20, 4),
+    ("posit24", ud.posit24, 4),
+    ("posit28", ud.posit28, 4),
+    ("posit40", ud.posit40, 8),
+    ("posit48", ud.posit48, 8),
+]
+
 
 @pytest.mark.parametrize("name,scalar,itemsize", POSITS)
 def test_dtype_resolves(name, scalar, itemsize):
@@ -129,3 +147,26 @@ def test_math_ufuncs_approx():
     np.testing.assert_allclose(
         np.log(np.array([1.0, np.e], dtype=p32)).astype(np.float64), [0.0, 1.0], atol=1e-5
     )
+
+
+@pytest.mark.parametrize("name,scalar,itemsize", POSITS_ALL)
+def test_all_configs(name, scalar, itemsize):
+    # One end-to-end check per shipped config (es variants + non-power-of-two
+    # widths). Uses only values exactly representable in every posit (near +-1).
+    import pickle
+
+    dt = np.dtype(scalar)
+    assert dt.itemsize == itemsize
+    assert np.dtype(name) == dt  # string-name resolution
+
+    vals = [1.0, 2.0, 0.5, -1.0, 0.25]
+    a = np.array(vals, dtype=scalar)
+    np.testing.assert_array_equal(a.astype(np.float64), vals)
+
+    # arithmetic (all operands/results exactly representable near +-1)
+    b = np.array([0.0, 0.0, 0.5, 1.0, 0.25], dtype=scalar)
+    np.testing.assert_array_equal((a + b).astype(np.float64), [1.0, 2.0, 1.0, 0.0, 0.5])
+
+    # NaR + pickle
+    assert bool(np.isnan(np.array([np.inf], dtype=scalar).astype(np.float64))[0])
+    np.testing.assert_array_equal(pickle.loads(pickle.dumps(a)).astype(np.float64), vals)
