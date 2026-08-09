@@ -38,6 +38,43 @@ that exceeds `float64`'s 53 bits (`posit64` and the `dd`/`td`/`qd` cascades). A
 plain `float64` intermediate would silently drop those low bits; casting
 `posit64 → qd_cascade → posit64`, for instance, is bit-exact.
 
+## Reductions and the accumulation contract
+
+Reductions accumulate **in the type itself**, in array order — there is no hidden
+wider accumulator. This is deliberate: the accumulation precision is the caller's
+choice, and exact/quire accumulation is [`mtl5`](https://github.com/stillwater-sc/mtl5-python)'s
+job, not this package's.
+
+| operation | behavior |
+|-----------|----------|
+| `sum`, `prod` | naive in-type accumulation, in order. `sum([]) → 0`, `prod([]) → 1` (identities, rounded into the type — see note). |
+| `min`, `max` | in-type, compared at **full precision** (the cascades order below `float64`). `min([])`/`max([])` raise, as in NumPy. |
+| `mean` | **not** computed in-type — see below. |
+| math ufuncs (`exp`, `sqrt`, `**`, …) | computed in `double`, then rounded back into the type. |
+
+The empty-reduction identity is the type's own representation of `0`/`1`: the
+fractional DSP formats (`q7`/`q15`/`q31`, range ±1) can't hold `1.0`, so their
+`prod([])` is the nearest representable value rather than exactly `1`.
+
+**In-type accumulation swamps.** Because there is no wider accumulator, small
+addends are lost against a large running sum:
+
+```python
+a = np.array([100.0] + [0.01] * 50, dtype=ud.posit16)
+np.sum(a)  # 100.0  — the 0.01s vanish in posit16
+np.sum(a.astype(np.float64))  # 100.5  — accumulate wider by casting first
+```
+
+**Wider accumulation and `mean`: cast first.** A wider accumulation dtype is not
+selected implicitly, so `np.sum(a, dtype=np.float64)` and `np.mean(a)` raise
+`TypeError` (there is no in-type divide-by-count for `mean`, by design). Accumulate
+in the precision you want by casting the array:
+
+```python
+a.astype(np.float64).sum()  # wider accumulation
+a.astype(np.float64).mean()  # the supported mean
+```
+
 ## Discoverability
 
 The set of dtypes is compiled in, so these registries are the source of truth for
