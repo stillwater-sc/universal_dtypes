@@ -14,29 +14,25 @@ semantic-release manages the **patch** component.
 
 ### Added
 
-- **`posit8/16/32/64` NumPy dtypes + a reusable templated-type harness
-  (issue #7).** The first templated Universal type is now a NumPy dtype family:
-  `posit<nbits,2>` for the standard sizes, usable via `ud.posit16` and the string
-  name `np.dtype("posit16")`. Full arithmetic (`+ - * /`, `negative`/`absolute`),
-  NaR-aware comparisons and `isnan`, casts to/from float/int/bool, reductions, and
-  sort — all sourced from Universal's `posit<n,2>` operators. Conversion is
-  cross-validated bit-for-bit against Universal's `posit16_roundtrip` over a
-  sampled grid.
-- **`python/src/universal_dtype.hpp`** — the NEP-42 registration machinery
-  (proved by `bfloat16` in #3) lifted into a `template<typename Traits>` harness.
-  Binding a new Universal C++ number type to a NumPy dtype is now a ~10-line
-  traits struct plus a one-line `register_universal_dtype<Traits>(m)` call;
-  `cfloat` (#8) and `lns` (#9) will reuse it.
+- **Pickling for every harness dtype (issue #7).** Arrays (`pickle`, `np.save`)
+  and scalars of `bfloat16`/`posit8/16/32/64` now round-trip. The dtype
+  reconstructs via its scalar type rather than its string name, so it survives a
+  name collision with another package (e.g. `ml_dtypes` also owns `"bfloat16"`) —
+  a pickled `bfloat16` array reloads as *ours*, not `ml_dtypes`'.
+- **Unary math ufuncs for every harness dtype (issue #7).** `sqrt`, `cbrt`,
+  `square`, `reciprocal`, `exp`/`exp2`/`expm1`, `log`/`log2`/`log10`/`log1p`, the
+  trig and hyperbolic families (`sin`/`cos`/`tan`/`arc*`/`*h`), `floor`/`ceil`/
+  `trunc`/`rint`, and `sign` — computed in double and rounded back into the type.
 
 ### Changed
 
-- **`bfloat16` re-expressed through the new harness (issue #3).** No behavior
-  change (still bit-for-bit vs `ml_dtypes.bfloat16`); the ~600 lines of
-  per-type NEP-42 code collapse to a small traits struct, removing the
-  duplication that adding `posit` would otherwise have created.
-- `np.dtype("bfloat16")` now resolves by string name too (the harness registers
-  each dtype's scalar type in `numpy.sctypeDict`), closing that `bfloat16`
-  follow-up.
+- The harness registers a string name in `numpy.sctypeDict` only when the name is
+  not already owned, so it no longer clobbers another package's dtype of the same
+  name (`ml_dtypes`' `"bfloat16"`).
+
+### Fixed
+
+- `argsort` is confirmed working for all harness dtypes (via the compare slot).
 
 <!-- version list -->
 

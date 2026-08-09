@@ -56,6 +56,24 @@ def test_casts_from_int_and_double():
     np.testing.assert_array_equal(a.astype(np.float64), np.array([1.0, 2.0, 3.0]))
 
 
+def test_pickle_roundtrip():
+    import pickle
+
+    a = np.array([1.0, 2.0, 3.0, 0.5], dtype=bf16)
+    b = pickle.loads(pickle.dumps(a))
+    assert b.dtype == np.dtype(bf16)
+    np.testing.assert_array_equal(b.astype(np.float32), a.astype(np.float32))
+    assert float(pickle.loads(pickle.dumps(bf16(2.5)))) == 2.5
+
+
+@pytest.mark.skipif(HAVE_ML, reason="ml_dtypes also owns the 'bfloat16' name")
+def test_string_name_resolves():
+    # np.dtype("bfloat16") resolves to ours only when ml_dtypes isn't installed;
+    # both packages share the name, and we deliberately don't clobber an existing
+    # owner. Pickling doesn't rely on the name (it goes through the scalar type).
+    assert np.dtype("bfloat16") == np.dtype(bf16)
+
+
 @pytest.mark.skipif(not HAVE_ML, reason="ml_dtypes not installed")
 def test_matches_ml_dtypes_rounding():
     # A grid of float32 values; bf16 rounding must match ml_dtypes bit-for-bit.
