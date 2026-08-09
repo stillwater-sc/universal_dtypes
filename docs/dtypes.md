@@ -75,6 +75,30 @@ a.astype(np.float64).sum()  # wider accumulation
 a.astype(np.float64).mean()  # the supported mean
 ```
 
+## Persistence and byte order
+
+Arrays round-trip through the usual mechanisms — **on the same platform**:
+
+```python
+pickle.loads(pickle.dumps(a))  # pickle
+np.load(path, allow_pickle=True)  # np.save / np.load (allow_pickle on load)
+np.frombuffer(a.tobytes(), dtype=a.dtype)  # raw bytes
+```
+
+`np.save`/`np.load` needs `allow_pickle=True` on load, because NumPy stores a
+custom dtype via the pickle protocol rather than the plain `.npy` binary header.
+
+**These dtypes are native-endian only.** Array storage is the raw element bytes,
+with no byte-order tag: `np.dtype(ud.posit16).byteorder` is `'|'` (not
+applicable), and NumPy 2.x's new-style DType API does not support `newbyteorder`
+or `byteswap` for them — don't call those (they are unsupported, and on some
+NumPy 2.x versions they crash rather than raise). Consequently a file written on
+one platform is **not** guaranteed to load on a platform of different endianness. The target
+ecosystem is little-endian, so this is an accepted limitation for now;
+cross-endian support is purely additive and can be added later without breaking
+anyone. (Individual *scalars* pickle by value — their `__reduce__` stores the
+`double` — so a single scalar is portable; arrays store raw bytes.)
+
 ## Discoverability
 
 The set of dtypes is compiled in, so these registries are the source of truth for
