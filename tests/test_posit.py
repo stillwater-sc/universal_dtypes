@@ -170,3 +170,14 @@ def test_all_configs(name, scalar, itemsize):
     # NaR + pickle
     assert bool(np.isnan(np.array([np.inf], dtype=scalar).astype(np.float64))[0])
     np.testing.assert_array_equal(pickle.loads(pickle.dumps(a)).astype(np.float64), vals)
+
+
+def test_registries():
+    # posit_dtypes covers exactly the shipped posit configs and each resolves.
+    assert set(ud.posit_dtypes) == {name for name, _, _ in POSITS_ALL}
+    for name, scalar, _ in POSITS_ALL:
+        assert ud.posit_dtypes[name] is scalar
+        assert np.dtype(ud.posit_dtypes[name]) == np.dtype(scalar)
+    # dtypes is posit_dtypes plus bfloat16.
+    assert ud.dtypes["bfloat16"] is ud.bfloat16
+    assert set(ud.dtypes) == set(ud.posit_dtypes) | {"bfloat16"}

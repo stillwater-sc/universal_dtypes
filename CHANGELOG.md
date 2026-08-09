@@ -14,25 +14,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **Additional posit configurations (issue #16).** Beyond the standard `es=2`
-  family, the harness now ships `es` variants (`posit8e0`, `posit8e1`,
-  `posit16e1`) and non-power-of-two widths (`posit12`, `posit20`, `posit24`,
-  `posit28`, `posit40`, `posit48`). A `storage_for<nbits>` trait stores each in
-  the smallest containing unsigned integer (12→2 bytes, 20/24/28→4, 40/48→8), so
-  `nbits` no longer has to equal the storage width. Configs are declared in a
-  one-line-per-entry codegen table (`UD_POSIT_LIST`), with `es < nbits` enforced
-  at compile time. Naming: bare `posit{nbits}` is `es=2`; other exponent sizes
-  use `posit{nbits}e{es}`.
-
-### Changed
-
-- **Versioning now follows conventional semver.** `feat` commits bump the
-  **minor** component (`0.x.y → 0.(x+1).0`); `fix`/`perf`/`refactor` bump the
-  **patch**. The previous config mapped `feat → patch` (reserving the minor for
-  the Universal version), which made features and fixes indistinguishable — e.g.
-  the whole `posit` family shipped as `0.1.4` rather than `0.2.0`. The next
-  feature will bump to `0.2.0`. (Already-published `0.1.x` versions are immutable
-  and unchanged.)
+- **Dtype discoverability registries (issue #16, Stage 3).** `universal_dtypes.dtypes`
+  (name → scalar type for every registered dtype) and `universal_dtypes.posit_dtypes`
+  (the posit family) make the compiled-in set programmatically enumerable —
+  `list(ud.dtypes)`, `np.dtype(ud.dtypes["posit12"])`.
+- **`docs/dtypes.md`** — reference for the shipped dtypes: the posit config table
+  (widths, `es`, itemsize), the `posit{nbits}` / `posit{nbits}e{es}` naming
+  convention, NaR semantics, and the one-line recipe for adding a config. Records
+  the deliberate curation of the default set (the full `nbits × es` matrix is not
+  instantiated, to bound binary size and compile time).
 
 <!-- version list -->
 
