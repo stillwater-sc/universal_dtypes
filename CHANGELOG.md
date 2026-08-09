@@ -14,21 +14,12 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **DSP application study: `applications/dsp/fixed_point_integrator.py`.** Runs a
-  sample-by-sample integrator across formats. `fixpnt16` integrates *exactly*
-  (fixed-point addition is exact within range) while `fp16`/`posit16` drift and
-  `bfloat16` stalls entirely (swamping — once a sample is below the accumulator's
-  ULP, the sum stops growing). This completes the math/dsp/ml/control application
-  set (`examples/applications/`), each comparing two or more number systems on a
-  real problem.
-
-### Fixed
-
-- Restore the changelog version-list insertion marker (an HTML comment
-  semantic-release inserts each release at), accidentally dropped in the 0.13.0
-  entry — which left semantic-release without an insertion point, so 0.13.0
-  shipped without a changelog section. The `v0.13.0` section below is added by
-  hand; auto-generation works again from here.
+- **DSP processor fixed-point formats (TI / Analog Devices).** The standard
+  fixed-point formats of commercial DSPs, as saturating `fixpnt` dtypes:
+  `q7` / `q15` / `q31` (Q1.7 / Q1.15 / Q1.31 fractional — TI C5000/C6000, ADI
+  ADSP-21xx/Blackfin/SHARC, ARM CMSIS-DSP), `iq24` (Q8.24, TI C2000 IQmath's IQ24
+  default), and `q5_23` (5.23, ADI SigmaDSP audio). All join the `fixpnt_dtypes`
+  registry; see [`docs/dtypes.md`](docs/dtypes.md).
 
 <!-- version list -->
 
