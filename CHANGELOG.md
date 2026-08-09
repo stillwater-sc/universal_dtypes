@@ -14,21 +14,13 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **`dd_cascade` NumPy dtype (issue #4)** — Universal's double-double: ~106-bit
-  significand (unevaluated sum of two float64), the first **high-precision
-  cascade** and the first **multi-word** dtype (16-byte element). `float64 →
-  dd_cascade` is exact; `dd_cascade → float64` is unsafe/lossy. A `cascade_dtypes`
-  registry joins the others in `dtypes`. Sets the multi-word-storage pattern that
-  `td_cascade`/`qd_cascade` (#5/#6) will reuse.
-
-### Changed
-
-- **Harness generalization for wide types.** Comparisons, sort, and `nonzero` now
-  run through trait-level `lt`/`eq`/`is_zero` on the C++ value instead of through
-  `to_double`, so a type whose `to_double` is lossy (dd) compares at full
-  precision. The small types (bfloat16/posit/cfloat/lns) keep identical behavior
-  (their `lt`/`eq`/`is_zero` are the `to_double` comparisons). Out-cast-to-float
-  safety is now trait-configurable (`to_float_casting`), defaulting to safe.
+- **`td_cascade` NumPy dtype (issue #5)** — Universal's triple-double: ~159-bit
+  significand (unevaluated sum of three float64), a 24-byte element. The precision
+  tier above `dd_cascade`; a direct extension of its multi-word pattern (three
+  limbs instead of two). Same rules — `float64 → td_cascade` exact,
+  `td_cascade → float64` unsafe/lossy, full-precision comparison/sort. Joins the
+  `cascade_dtypes` registry. Demonstrated on a three-magnitude cancellation
+  (`1e20 + 1 + 1e-20 − 1e20 − 1`) that double-double cannot retain.
 
 <!-- version list -->
 
