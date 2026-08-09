@@ -33,6 +33,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.4.0 (2026-08-09)
+
+### Features
+
+- **dtype**: Cfloat dtypes fp16 + fp8e5m2 via the harness
+  ([#20](https://github.com/stillwater-sc/universal_dtypes/pull/20),
+  [`3955f3f`](https://github.com/stillwater-sc/universal_dtypes/commit/3955f3f50fed0fc7d295d36c0e6dee2d6a19bd71))
+
+
 ## v0.3.0 (2026-08-09)
 
 ### Features
