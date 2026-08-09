@@ -14,22 +14,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **`cfloat` NumPy dtypes: `fp16` and `fp8e5m2` (issue #8).** Universal's
-  configurable float bound through the harness, both chosen for exact parity:
-  `fp16` (`cfloat<16,5>`) is bit-compatible with `numpy.float16`, and `fp8e5m2`
-  (`cfloat<8,5>`) with `ml_dtypes.float8_e5m2` (validated over the full domain).
-  A `cfloat_dtypes` registry joins `posit_dtypes` in `dtypes`.
-- **`isinf` and `isfinite` ufuncs** for every harness dtype (via a new `is_inf`
-  trait: IEEE inf for bfloat16/cfloat, always false for posit which has NaR and no
-  infinity). `isnan` already existed.
-
-### Notes
-
-- `e4m3` is intentionally not shipped: no Universal type is bit-exact with
-  `ml_dtypes.float8_e4m3fn`. Tracked as #19.
-- `bfloat16` (numerically a `cfloat<16,8>`) keeps its dedicated standalone
-  implementation for `ml_dtypes` parity rather than joining the `cfloat` family —
-  documented in [`docs/design.md`](docs/design.md).
+- **`lns` NumPy dtypes: `lns16` and `lns32` (issue #9).** Universal's logarithmic
+  number system (`lns<16,8>` / `lns<32,16>`, its canonical splits) bound through
+  the harness. Multiply/divide are exact in the log domain; add/subtract use
+  Universal's Gaussian-log routines (approximate — `lns32` much tighter than
+  `lns16`). LNS has dedicated zero and NaN encodings and **no infinity** (so
+  `isinf` is always false). No `ml_dtypes` counterpart — validated against
+  Universal's own `lns`. A `lns_dtypes` registry joins the others in `dtypes`.
+  This completes the initial templated-type set (posit, cfloat, lns) on the
+  shared harness.
 
 <!-- version list -->
 

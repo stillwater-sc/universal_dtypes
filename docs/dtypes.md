@@ -20,9 +20,10 @@ The set of dtypes is compiled in, so these registries are the source of truth fo
 what a given build ships:
 
 ```python
-ud.dtypes  # {"bfloat16": ..., "fp16": ..., "posit8": ..., ...}  every dtype
+ud.dtypes  # {"bfloat16": ..., "fp16": ..., "posit8": ..., "lns16": ...}  every dtype
 ud.posit_dtypes  # just the posit family
 ud.cfloat_dtypes  # just the cfloat family (fp16, fp8e5m2)
+ud.lns_dtypes  # just the lns family (lns16, lns32)
 list(ud.dtypes)  # the names
 np.dtype(ud.dtypes["posit12"])  # -> dtype(posit12)
 ```
@@ -59,6 +60,25 @@ through this family — see [`design.md`](design.md).
 `ml_dtypes.float8_e4m3fn` (OCP e4m3fn: max 448, no inf, overflow → NaN):
 `cfloat<8,4>` is IEEE-style (has inf, max 240), and `microfloat` e4m3 saturates
 large overflow to 448 instead of NaN. It's tracked as a follow-up.
+
+## lns (logarithmic number system)
+
+LNS stores a sign and the base-2 logarithm of the magnitude. Multiply and divide
+become add/subtract of the stored logs (cheap, and exact in the exponent);
+add/subtract are the hard operations and use Universal's Gaussian-log routines
+(inexact, more so at low precision). There is no `ml_dtypes` counterpart.
+
+| config | `lns<…>` | itemsize |
+|--------|----------|---------:|
+| `lns16` | `lns<16,8,uint16>`  | 2 |
+| `lns32` | `lns<32,16,uint32>` | 4 |
+
+`rbits` (the fractional resolution of the fixed-point exponent) is `8` for
+`lns16` and `16` for `lns32` — Universal's canonical splits. LNS has dedicated
+encodings for **zero** and **NaN** but **no infinity**, so `np.isinf` is always
+`False` and `np.isfinite` is `not isnan`. Powers of two (and their products/
+ratios) are exact; general add/sub are approximate — see the tests for the
+tolerances (`lns32` is much tighter than `lns16`).
 
 ## posit
 
