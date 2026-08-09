@@ -40,10 +40,12 @@ select = ["E", "F", "W", "I"]
 # ---------------------------------------------------------------------------
 # python-semantic-release
 #
-# universal_dtypes is a pre-1.0 package (major_on_zero = false), and — like
-# mtl5-python — semantic-release manages only the PATCH component from
-# conventional commits (feat/fix/perf/refactor → patch). Minor/major bumps are
-# manual, intended to track the Universal release the dtypes are built against.
+# universal_dtypes is a pre-1.0 package (major_on_zero = false) and follows
+# conventional semver: feat → MINOR, fix/perf/refactor → PATCH. On 0.x this means
+# a new feature bumps 0.x.y → 0.(x+1).0 and a fix bumps the patch. (An earlier
+# config mapped feat → patch to "reserve" the minor for the Universal version;
+# that flattened features and fixes into indistinguishable patch bumps — e.g. the
+# whole posit family shipped as 0.1.4 instead of 0.2.0 — so it was dropped.)
 # ---------------------------------------------------------------------------
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
@@ -58,8 +60,8 @@ allow_zero_version = true
 branch = "main"
 
 [tool.semantic_release.commit_parser_options]
-minor_tags = []
-patch_tags = ["feat", "fix", "perf", "refactor"]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf", "refactor"]
 
 [tool.semantic_release.changelog]
 changelog_file = "CHANGELOG.md"
