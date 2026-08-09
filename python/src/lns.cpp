@@ -51,6 +51,10 @@ struct LnsTraitsBase {
     static double to_double(const cpp_t& v) { return static_cast<double>(v); }
     static bool is_nan(const cpp_t& v) { return v.isnan(); }
     static bool is_inf(const cpp_t&) { return false; }  // LNS has zero/NaN encodings, no infinity
+    // lns is lossless to double at these sizes, so value comparisons go through it.
+    static bool lt(const cpp_t& a, const cpp_t& b) { return to_double(a) < to_double(b); }
+    static bool eq(const cpp_t& a, const cpp_t& b) { return to_double(a) == to_double(b); }
+    static bool is_zero(const cpp_t& v) { return to_double(v) == 0.0; }
 };
 
 #define UD_LNS_LIST(X)                    \

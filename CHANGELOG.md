@@ -14,15 +14,21 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **`lns` NumPy dtypes: `lns16` and `lns32` (issue #9).** Universal's logarithmic
-  number system (`lns<16,8>` / `lns<32,16>`, its canonical splits) bound through
-  the harness. Multiply/divide are exact in the log domain; add/subtract use
-  Universal's Gaussian-log routines (approximate — `lns32` much tighter than
-  `lns16`). LNS has dedicated zero and NaN encodings and **no infinity** (so
-  `isinf` is always false). No `ml_dtypes` counterpart — validated against
-  Universal's own `lns`. A `lns_dtypes` registry joins the others in `dtypes`.
-  This completes the initial templated-type set (posit, cfloat, lns) on the
-  shared harness.
+- **`dd_cascade` NumPy dtype (issue #4)** — Universal's double-double: ~106-bit
+  significand (unevaluated sum of two float64), the first **high-precision
+  cascade** and the first **multi-word** dtype (16-byte element). `float64 →
+  dd_cascade` is exact; `dd_cascade → float64` is unsafe/lossy. A `cascade_dtypes`
+  registry joins the others in `dtypes`. Sets the multi-word-storage pattern that
+  `td_cascade`/`qd_cascade` (#5/#6) will reuse.
+
+### Changed
+
+- **Harness generalization for wide types.** Comparisons, sort, and `nonzero` now
+  run through trait-level `lt`/`eq`/`is_zero` on the C++ value instead of through
+  `to_double`, so a type whose `to_double` is lossy (dd) compares at full
+  precision. The small types (bfloat16/posit/cfloat/lns) keep identical behavior
+  (their `lt`/`eq`/`is_zero` are the `to_double` comparisons). Out-cast-to-float
+  safety is now trait-configurable (`to_float_casting`), defaulting to safe.
 
 <!-- version list -->
 

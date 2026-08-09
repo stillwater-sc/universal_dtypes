@@ -49,6 +49,10 @@ struct CfloatTraitsBase {
     static double to_double(const cpp_t& v) { return static_cast<double>(v); }
     static bool is_nan(const cpp_t& v) { return v.isnan(); }
     static bool is_inf(const cpp_t& v) { return v.isinf(); }
+    // cfloat (fp16/fp8) is lossless to double, so value comparisons go through it.
+    static bool lt(const cpp_t& a, const cpp_t& b) { return to_double(a) < to_double(b); }
+    static bool eq(const cpp_t& a, const cpp_t& b) { return to_double(a) == to_double(b); }
+    static bool is_zero(const cpp_t& v) { return to_double(v) == 0.0; }
 };
 
 #define UD_CFLOAT_LIST(X)                       \

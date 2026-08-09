@@ -13,6 +13,8 @@ Provides NumPy 2.x custom dtypes backed by Universal's C++ number types:
 - ``lns16`` / ``lns32`` — logarithmic number system (``lns<16,8>`` / ``lns<32,16>``):
   multiply/divide are exact in the exponent; add/subtract use Universal's
   Gaussian-log routines.
+- ``dd_cascade`` — double-double (~106-bit significand), a 16-byte high-precision
+  type; multiply/divide/add use error-free transformations.
 
 Each dtype supports array creation, casts, element-wise arithmetic and math
 ufuncs, comparisons, reductions, sort, and pickling. Use them like any dtype::
@@ -40,6 +42,7 @@ except _PackageNotFoundError:
 
 from universal_dtypes._core import (  # noqa: E402
     Bfloat16DType,
+    DdCascadeDType,
     Fp8e5m2DType,
     Fp16DType,
     Lns16DType,
@@ -59,6 +62,7 @@ from universal_dtypes._core import (  # noqa: E402
     Posit64DType,
     bfloat16,
     build_info,
+    dd_cascade,
     fp8e5m2,
     fp16,
     lns16,
@@ -109,7 +113,12 @@ lns_dtypes = {
     "lns32": lns32,
 }
 
-dtypes = {"bfloat16": bfloat16, **cfloat_dtypes, **posit_dtypes, **lns_dtypes}
+# high-precision cascades (multi-word storage); more arrive with #5/#6.
+cascade_dtypes = {
+    "dd_cascade": dd_cascade,
+}
+
+dtypes = {"bfloat16": bfloat16, **cfloat_dtypes, **posit_dtypes, **lns_dtypes, **cascade_dtypes}
 
 __all__ = [
     "__version__",
@@ -119,8 +128,12 @@ __all__ = [
     "dtypes",
     "cfloat_dtypes",
     "lns_dtypes",
+    "cascade_dtypes",
     "posit_dtypes",
     "posit16_roundtrip",
+    # cascade (high-precision) types
+    "dd_cascade",
+    "DdCascadeDType",
     # cfloat scalar types + dtype classes
     "fp16",
     "fp8e5m2",

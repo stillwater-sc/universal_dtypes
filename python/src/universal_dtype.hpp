@@ -24,6 +24,13 @@
 //     static double      to_double(const cpp_t&);  // convert back to double
 //     static bool        is_nan(const cpp_t&);     // IEEE NaN / posit NaR
 //     static bool        is_inf(const cpp_t&);     // IEEE inf (false if none, e.g. posit)
+//     static bool        lt(const cpp_t&, const cpp_t&);  // ordering (full precision)
+//     static bool        eq(const cpp_t&, const cpp_t&);  // equality (full precision)
+//     static bool        is_zero(const cpp_t&);            // true for the zero value
+//
+// For a type whose to_double() is lossless (bfloat16/posit/cfloat/lns), lt/eq/
+// is_zero are simply the to_double comparisons. A wide type (dd/…) must implement
+// them with the C++ type's own operators so comparison/sort keep full precision.
 //
 // Arithmetic and comparisons are sourced from cpp_t's own operators, so the
 // dtype's numerics are exactly the Universal type's — the whole point of the
@@ -49,7 +56,22 @@
 
 #include <nanobind/nanobind.h>
 
+#include <type_traits>
+
 namespace nb = nanobind;
+
+// A dtype's out-cast-to-IEEE-float safety. SAFE when to_double() is lossless (the
+// small types), UNSAFE when it loses precision (dd and the other cascades). It is
+// detected from an optional `Traits::to_float_casting`, defaulting to SAFE, so
+// existing traits need no change and a wide type opts in with one line.
+template <typename T, typename = void>
+struct out_float_casting {
+    static constexpr NPY_CASTING value = NPY_SAFE_CASTING;
+};
+template <typename T>
+struct out_float_casting<T, std::void_t<decltype(T::to_float_casting)>> {
+    static constexpr NPY_CASTING value = T::to_float_casting;
+};
 
 // All per-type state (scalar type, DTypeMeta, cast specs) lives in static
 // members of this class template, so each Traits gets its own independent set.
@@ -230,17 +252,16 @@ struct UniversalDType {
         storage_t ba, bb;
         std::memcpy(&ba, a, ELSIZE);
         std::memcpy(&bb, b, ELSIZE);
-        double fa = Traits::to_double(Traits::from_bits(ba));
-        double fb = Traits::to_double(Traits::from_bits(bb));
-        if (fa < fb) return -1;
-        if (fa > fb) return 1;
+        cpp_t va = Traits::from_bits(ba), vb = Traits::from_bits(bb);
+        if (Traits::lt(va, vb)) return -1;
+        if (Traits::lt(vb, va)) return 1;
         return 0;
     }
 
     static npy_bool slot_nonzero(void* data, void*) {
         storage_t bits;
         std::memcpy(&bits, data, ELSIZE);
-        return Traits::to_double(Traits::from_bits(bits)) != 0.0 ? NPY_TRUE : NPY_FALSE;
+        return Traits::is_zero(Traits::from_bits(bits)) ? NPY_FALSE : NPY_TRUE;
     }
 
     inline static PyType_Slot dtype_slots[10] = {
@@ -360,10 +381,11 @@ struct UniversalDType {
 
         int n = 0;
         casts[n++] = &self_cast;
+        constexpr NPY_CASTING out_float = out_float_casting<Traits>::value;
         casts[n++] = make_cast("to_float", &DType, &PyArray_FloatDType,
-                               (PyArrayMethod_StridedLoop*)&cast_to_builtin<float>, NPY_SAFE_CASTING);
+                               (PyArrayMethod_StridedLoop*)&cast_to_builtin<float>, out_float);
         casts[n++] = make_cast("to_double", &DType, &PyArray_DoubleDType,
-                               (PyArrayMethod_StridedLoop*)&cast_to_builtin<double>, NPY_SAFE_CASTING);
+                               (PyArrayMethod_StridedLoop*)&cast_to_builtin<double>, out_float);
         casts[n++] = make_cast("to_longlong", &DType, &PyArray_LongLongDType,
                                (PyArrayMethod_StridedLoop*)&cast_to_builtin<long long>, NPY_UNSAFE_CASTING);
         casts[n++] = make_cast("from_float", &PyArray_FloatDType, &DType,
@@ -427,7 +449,9 @@ struct UniversalDType {
         return 0;
     }
 
-    template <bool (*Cmp)(double, double)>
+    // Comparisons run on cpp_t values via the trait's lt/eq, so a type whose
+    // to_double is lossy (e.g. dd's ~106-bit value) compares at full precision.
+    template <bool (*Cmp)(const cpp_t&, const cpp_t&)>
     static int cmp_loop(PyArrayMethod_Context*, char* const data[], npy_intp const dims[],
                         npy_intp const strides[], NpyAuxData*) {
         npy_intp N = dims[0];
@@ -436,9 +460,7 @@ struct UniversalDType {
             storage_t a, b;
             std::memcpy(&a, i0, ELSIZE);
             std::memcpy(&b, i1, ELSIZE);
-            double fa = Traits::to_double(Traits::from_bits(a));
-            double fb = Traits::to_double(Traits::from_bits(b));
-            npy_bool r = Cmp(fa, fb) ? NPY_TRUE : NPY_FALSE;
+            npy_bool r = Cmp(Traits::from_bits(a), Traits::from_bits(b)) ? NPY_TRUE : NPY_FALSE;
             std::memcpy(o, &r, sizeof(npy_bool));
             i0 += strides[0]; i1 += strides[1]; o += strides[2];
         }
@@ -472,12 +494,14 @@ struct UniversalDType {
     static cpp_t op_div(cpp_t a, cpp_t b) { return a / b; }
     static cpp_t op_neg(cpp_t a) { return -a; }
     static cpp_t op_abs(cpp_t a) { return Traits::to_double(a) < 0.0 ? cpp_t(-a) : a; }
-    static bool cmp_eq(double a, double b) { return a == b; }
-    static bool cmp_ne(double a, double b) { return a != b; }
-    static bool cmp_lt(double a, double b) { return a < b; }
-    static bool cmp_le(double a, double b) { return a <= b; }
-    static bool cmp_gt(double a, double b) { return a > b; }
-    static bool cmp_ge(double a, double b) { return a >= b; }
+    // All six comparisons derive from the trait's lt/eq. NaN/NaR are unordered:
+    // lt and eq both return false, so <,<=,>,>=,== are false and != is true.
+    static bool cmp_eq(const cpp_t& a, const cpp_t& b) { return Traits::eq(a, b); }
+    static bool cmp_ne(const cpp_t& a, const cpp_t& b) { return !Traits::eq(a, b); }
+    static bool cmp_lt(const cpp_t& a, const cpp_t& b) { return Traits::lt(a, b); }
+    static bool cmp_le(const cpp_t& a, const cpp_t& b) { return Traits::lt(a, b) || Traits::eq(a, b); }
+    static bool cmp_gt(const cpp_t& a, const cpp_t& b) { return Traits::lt(b, a); }
+    static bool cmp_ge(const cpp_t& a, const cpp_t& b) { return Traits::lt(b, a) || Traits::eq(a, b); }
 
     // Unary math ufuncs (exp/log/trig/sqrt/...): compute in double, round back
     // into the type. Higher-precision-then-round is the correct semantics for a

@@ -38,6 +38,10 @@ struct Bfloat16Traits {
     static double to_double(const cpp_t& v) { return static_cast<double>(v); }
     static bool is_nan(const cpp_t& v) { return std::isnan(static_cast<float>(v)); }
     static bool is_inf(const cpp_t& v) { return std::isinf(static_cast<float>(v)); }
+    // bf16 is lossless to double, so value comparisons go through it.
+    static bool lt(const cpp_t& a, const cpp_t& b) { return to_double(a) < to_double(b); }
+    static bool eq(const cpp_t& a, const cpp_t& b) { return to_double(a) == to_double(b); }
+    static bool is_zero(const cpp_t& v) { return to_double(v) == 0.0; }
 };
 
 }  // namespace

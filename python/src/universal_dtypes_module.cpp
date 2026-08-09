@@ -33,6 +33,7 @@ void register_bfloat16(nb::module_& m);  // python/src/bfloat16.cpp
 void register_posits(nb::module_& m);    // python/src/posit.cpp
 void register_cfloats(nb::module_& m);   // python/src/cfloat.cpp
 void register_lns(nb::module_& m);       // python/src/lns.cpp
+void register_dd_cascade(nb::module_& m); // python/src/dd.cpp
 
 NB_MODULE(_core, m) {
     if (_import_array() < 0) throw std::runtime_error("numpy multiarray import failed");
@@ -42,6 +43,7 @@ NB_MODULE(_core, m) {
     register_posits(m);
     register_cfloats(m);
     register_lns(m);
+    register_dd_cascade(m);
 
     m.doc() = "universal_dtypes core — NumPy dtypes for the Universal number systems";
     m.attr("__version__") = UNIVERSAL_DTYPES_VERSION;
