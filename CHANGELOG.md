@@ -24,6 +24,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.12.0 (2026-08-09)
+
+### Features
+
+- **examples**: Application study — control/kalman_precision (low-precision danger)
+  ([#28](https://github.com/stillwater-sc/universal_dtypes/pull/28),
+  [`2136e20`](https://github.com/stillwater-sc/universal_dtypes/commit/2136e2016884226868f515aaf34f8f1c1d36f52d))
+
+
 ## v0.11.0 (2026-08-09)
 
 ### Features
