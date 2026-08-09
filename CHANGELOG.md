@@ -23,6 +23,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.16.0 (2026-08-09)
+
+### Features
+
+- **examples**: Dsp/fir_coefficient_quantization — the DSP Q-formats in action
+  ([#33](https://github.com/stillwater-sc/universal_dtypes/pull/33),
+  [`d31b1c2`](https://github.com/stillwater-sc/universal_dtypes/commit/d31b1c2d99da9507cdff06f8bd83249f11fdf2bc))
+
+
 ## v0.15.0 (2026-08-09)
 
 ### Features
