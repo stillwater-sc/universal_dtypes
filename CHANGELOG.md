@@ -14,12 +14,12 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **DSP study: `applications/dsp/fir_coefficient_quantization.py`.** Quantizes a
-  31-tap low-pass FIR's coefficients to the DSP Q-formats and measures the
-  frequency response. `q31`/`q15` preserve the −58 dB stopband (the reason 16-bit
-  fixed-point DSPs carry real filters), while `q7` loses ~26 dB — the classic
-  "how many bits do my taps need" answer, with the new `q7`/`q15`/`q31` dtypes in
-  action.
+- **Vendor-format application studies for `iq24` and `q5_23`.**
+  `applications/control/iqmath_pid.py` — a TI IQmath-style PI control loop where
+  `iq24` (Q8.24) has the range *and* precision to regulate a setpoint of 10 and
+  match float64, while `q15`'s ±1 range cannot. `applications/dsp/sigmadsp_audio.py`
+  — an ADI SigmaDSP-style audio pipeline where `q5_23` (5.23) delivers ~136 dB
+  fidelity and passes an above-unity channel mix that `q15` clips.
 
 <!-- version list -->
 
