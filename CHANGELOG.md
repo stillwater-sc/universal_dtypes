@@ -29,6 +29,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.22.0 (2026-08-09)
+
+### Features
+
+- **dtype**: Pin the reduction/accumulation contract; empty-reduction identities
+  ([#50](https://github.com/stillwater-sc/universal_dtypes/pull/50),
+  [`11274b7`](https://github.com/stillwater-sc/universal_dtypes/commit/11274b7715ea1a2b8b3ab588edb0b89b5e8f2732))
+
+
 ## v0.21.0 (2026-08-09)
 
 ### Features
