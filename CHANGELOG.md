@@ -25,6 +25,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.20.0 (2026-08-09)
+
+### Features
+
+- **dtype**: Power, minimum/maximum/fmin/fmax, and clip ufuncs
+  ([#45](https://github.com/stillwater-sc/universal_dtypes/pull/45),
+  [`843f1a7`](https://github.com/stillwater-sc/universal_dtypes/commit/843f1a7166e454404f20871eb8d51fe0bc9c8ba8))
+
+
 ## v0.19.0 (2026-08-09)
 
 ### Code Style
