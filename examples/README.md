@@ -36,8 +36,10 @@ under [`applications/`](applications/).
 | [`applications/math/rump.py`](applications/math/rump.py) | math | float32/64, dd/td/qd | Rump's example: float64 *and* double-double are wrong; triple-double is the first precision that solves it |
 | [`applications/ml/quantized_mlp.py`](applications/ml/quantized_mlp.py) | ml | float32, bf16/fp16/posit16, fp8e5m2/posit8 | quantized MLP inference: 16-bit is ~lossless at half the memory; 8-bit trades accuracy for 4× size (posit8 > fp8e5m2) |
 | [`applications/control/kalman_precision.py`](applications/control/kalman_precision.py) | control | float64, fp16/posit16, bfloat16, fp8e5m2 | Kalman filter in low precision: fp8 diverges and even bfloat16 degrades below the raw sensor; the covariance recursion needs mantissa bits |
+| [`applications/control/iqmath_pid.py`](applications/control/iqmath_pid.py) | control | iq24, q15 | TI IQmath-style PI loop: iq24 (Q8.24) has the range + precision for control and matches float64; q15's ±1 range can't hold the setpoint |
 | [`applications/dsp/fixed_point_integrator.py`](applications/dsp/fixed_point_integrator.py) | dsp | fixpnt16, fp16/posit16, bfloat16 | an integrator: fixed-point adds exactly within range while floating point drifts — and bfloat16 stalls (swamping) |
 | [`applications/dsp/fir_coefficient_quantization.py`](applications/dsp/fir_coefficient_quantization.py) | dsp | q7 / q15 / q31 | FIR taps in the DSP Q-formats: q15/q31 preserve the filter (why 16-bit DSPs work); q7 wrecks the stopband |
+| [`applications/dsp/sigmadsp_audio.py`](applications/dsp/sigmadsp_audio.py) | dsp | q5_23, q15, fp16 | ADI SigmaDSP-style audio: q5_23 (5.23) gives ~136 dB fidelity and the mixing headroom q15 clips away |
 
 To add an application study, drop a script into `examples/applications/<domain>/`
 (same conventions: clear docstring, self-asserting) — the CI runner picks it up.
