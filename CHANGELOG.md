@@ -12,17 +12,6 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ## [Unreleased]
 
-### Features
-
-- **pandas integration** (the `[pandas]` extra). `import universal_dtypes.pandas_ext`
-  registers a pandas `ExtensionDtype`/`ExtensionArray` for **every** universal
-  dtype, thinly backed by the NumPy dtype (pure Python, no MTL5). Supports
-  `pd.array`/`pd.Series`/`DataFrame` construction by name, indexing/slicing,
-  `isna`, `take`, `concat`, `factorize`, reductions, and `astype` (reusing the
-  value-domain cross-casts). Classes are exposed by CamelCase name
-  (`Posit16Dtype`/`Posit16Array`, …) for downstream re-export. The core package
-  still never imports pandas. Closes #47.
-
 <!-- version list -->
 
 ## v0.23.0 (2026-08-09)
