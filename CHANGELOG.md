@@ -23,6 +23,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.10.0 (2026-08-09)
+
+### Features
+
+- **examples**: Application study — math/rump (precision that double can't reach)
+  ([#26](https://github.com/stillwater-sc/universal_dtypes/pull/26),
+  [`4fa72ff`](https://github.com/stillwater-sc/universal_dtypes/commit/4fa72ffca27af901afc03b6fb09ec69653b168c5))
+
+
 ## v0.9.0 (2026-08-09)
 
 ### Features
