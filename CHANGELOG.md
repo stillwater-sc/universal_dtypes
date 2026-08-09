@@ -14,15 +14,11 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **Control application study: `applications/control/kalman_precision.py`.** Runs
-  the same constant-velocity Kalman filter in several formats and reports position
-  RMSE against ground truth. fp8e5m2 diverges catastrophically (~44 vs float64's
-  ~0.14) and even bfloat16 degrades the estimate *below the raw sensor* — the
-  `P = (I - K H) P` covariance recursion is cancellation-prone and needs the
-  mantissa bits fp16/posit16 have and bfloat16/fp8 don't. A concrete warning
-  against "just quantize the filter to fp16/fp8."
-
-<!-- version list -->
+- **`fixpnt16` / `fixpnt8` NumPy dtypes (issue #29)** — Universal's saturating
+  fixed-point (Q8.8 / Q4.4) via the harness: uniform absolute resolution, exact
+  addition within range, saturation on overflow, and no NaN/Inf. Fills the
+  README-spec gap and joins a new `fixpnt_dtypes` registry. Enables the DSP
+  application study to come.
 
 ## v0.12.0 (2026-08-09)
 

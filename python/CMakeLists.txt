@@ -22,7 +22,8 @@ nanobind_add_module(_core
     src/lns.cpp
     src/dd.cpp
     src/td.cpp
-    src/qd.cpp)
+    src/qd.cpp
+    src/fixpnt.cpp)
 
 # Header-only Universal number systems.
 target_link_libraries(_core PRIVATE universal)

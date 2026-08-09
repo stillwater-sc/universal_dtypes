@@ -24,7 +24,8 @@ ud.dtypes  # {"bfloat16": ..., "fp16": ..., "posit8": ..., "dd_cascade": ...}  e
 ud.posit_dtypes  # just the posit family
 ud.cfloat_dtypes  # just the cfloat family (fp16, fp8e5m2)
 ud.lns_dtypes  # just the lns family (lns16, lns32)
-ud.cascade_dtypes  # high-precision cascades (dd_cascade; td/qd to come)
+ud.fixpnt_dtypes  # fixed-point family (fixpnt16, fixpnt8)
+ud.cascade_dtypes  # high-precision cascades (dd/td/qd_cascade)
 list(ud.dtypes)  # the names
 np.dtype(ud.dtypes["posit12"])  # -> dtype(posit12)
 ```
@@ -38,6 +39,18 @@ np.dtype(ud.dtypes["posit12"])  # -> dtype(posit12)
 Bit-for-bit compatible with `ml_dtypes.bfloat16`. When `ml_dtypes` is also
 installed it owns the `"bfloat16"` string name (we don't clobber it); pickling is
 unaffected because it round-trips through the scalar type, not the name.
+
+## fixpnt (fixed-point)
+
+Saturating fixed-point: a scaled integer with a fixed radix point, so resolution
+is **uniform** across the range (unlike floating point's relative precision) and
+**addition is exact within range** — the reason fixed-point is a DSP staple. There
+is no NaN/Inf; out-of-range values clamp to ±maxpos (saturate) rather than wrap.
+
+| config | `fixpnt<…>` | itemsize | format | range | resolution |
+|--------|-------------|---------:|--------|-------|-----------|
+| `fixpnt16` | `fixpnt<16,8,Saturate,uint16>` | 2 | Q8.8 | ±128 | 2⁻⁸ |
+| `fixpnt8`  | `fixpnt<8,4,Saturate,uint8>`   | 1 | Q4.4 | ±8   | 2⁻⁴ |
 
 ## cascades (high precision)
 
