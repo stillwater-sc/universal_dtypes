@@ -26,6 +26,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.3.0 (2026-08-09)
+
+### Features
+
+- **dtype**: Dtype discoverability registries + docs (posit config curation)
+  ([#18](https://github.com/stillwater-sc/universal_dtypes/pull/18),
+  [`7b28c4f`](https://github.com/stillwater-sc/universal_dtypes/commit/7b28c4f15db9d0bdce9ab3a5a6ab6075083510df))
+
+
 ## v0.2.0 (2026-08-09)
 
 ### Continuous Integration
