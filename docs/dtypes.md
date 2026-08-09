@@ -52,6 +52,20 @@ is no NaN/Inf; out-of-range values clamp to ±maxpos (saturate) rather than wrap
 | `fixpnt16` | `fixpnt<16,8,Saturate,uint16>` | 2 | Q8.8 | ±128 | 2⁻⁸ |
 | `fixpnt8`  | `fixpnt<8,4,Saturate,uint8>`   | 1 | Q4.4 | ±8   | 2⁻⁴ |
 
+### DSP processor formats (TI / Analog Devices)
+
+The fixed-point formats native to commercial DSPs are also registered (all
+saturating). The fractional `q7`/`q15`/`q31` are shared across TI, ADI, and ARM
+CMSIS-DSP; `iq24` and `q5_23` are vendor-specific:
+
+| config | `fixpnt<…>` | itemsize | format | range | used by |
+|--------|-------------|---------:|--------|-------|---------|
+| `q7`    | `fixpnt<8,7,Saturate,uint8>`    | 1 | Q1.7  | ±1   | TI/ADI/ARM 8-bit |
+| `q15`   | `fixpnt<16,15,Saturate,uint16>` | 2 | Q1.15 | ±1   | TI C5000, ADI ADSP-21xx / Blackfin |
+| `q31`   | `fixpnt<32,31,Saturate,uint32>` | 4 | Q1.31 | ±1   | TI C6000, ADI Blackfin / SHARC |
+| `iq24`  | `fixpnt<32,24,Saturate,uint32>` | 4 | Q8.24 | ±128 | TI C2000 IQmath (IQ24 default) |
+| `q5_23` | `fixpnt<28,23,Saturate,uint32>` | 4 | 5.23  | ±16  | ADI SigmaDSP audio |
+
 ## cascades (high precision)
 
 Floating-point *expansions*: a value is an unevaluated sum of several IEEE

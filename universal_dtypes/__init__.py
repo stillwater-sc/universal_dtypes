@@ -15,6 +15,9 @@ Provides NumPy 2.x custom dtypes backed by Universal's C++ number types:
   Gaussian-log routines.
 - ``fixpnt16`` / ``fixpnt8`` — saturating fixed-point (Q8.8 / Q4.4): uniform
   resolution and exact addition within range (DSP).
+- ``q7`` / ``q15`` / ``q31`` / ``iq24`` / ``q5_23`` — the standard fixed-point
+  formats of TI and Analog Devices DSPs (Q1.7/Q1.15/Q1.31 fractional, TI IQmath
+  Q8.24, ADI SigmaDSP 5.23).
 - ``dd_cascade`` / ``td_cascade`` / ``qd_cascade`` — double-double (~106-bit,
   16-byte), triple-double (~159-bit, 24-byte), and quad-double (~212-bit, 32-byte)
   high-precision types; arithmetic uses error-free transformations.
@@ -50,6 +53,7 @@ from universal_dtypes._core import (  # noqa: E402
     Fixpnt16DType,
     Fp8e5m2DType,
     Fp16DType,
+    Iq24DType,
     Lns16DType,
     Lns32DType,
     Posit8DType,
@@ -65,6 +69,10 @@ from universal_dtypes._core import (  # noqa: E402
     Posit40DType,
     Posit48DType,
     Posit64DType,
+    Q5_23DType,
+    Q7DType,
+    Q15DType,
+    Q31DType,
     QdCascadeDType,
     TdCascadeDType,
     bfloat16,
@@ -74,6 +82,7 @@ from universal_dtypes._core import (  # noqa: E402
     fixpnt16,
     fp8e5m2,
     fp16,
+    iq24,
     lns16,
     lns32,
     posit8,
@@ -90,6 +99,10 @@ from universal_dtypes._core import (  # noqa: E402
     posit40,
     posit48,
     posit64,
+    q5_23,
+    q7,
+    q15,
+    q31,
     qd_cascade,
     td_cascade,
 )
@@ -127,6 +140,12 @@ lns_dtypes = {
 fixpnt_dtypes = {
     "fixpnt16": fixpnt16,
     "fixpnt8": fixpnt8,
+    # standard DSP fixed-point formats (TI / Analog Devices)
+    "q7": q7,  # Q1.7  — TI/ADI/ARM 8-bit fractional
+    "q15": q15,  # Q1.15 — TI C5000, ADI 21xx/Blackfin
+    "q31": q31,  # Q1.31 — TI C6000, ADI Blackfin/SHARC
+    "iq24": iq24,  # Q8.24 — TI C2000 IQmath (IQ24)
+    "q5_23": q5_23,  # 5.23  — ADI SigmaDSP audio
 }
 
 # high-precision cascades (multi-word storage): the complete dd/td/qd family.
@@ -162,6 +181,17 @@ __all__ = [
     "fixpnt8",
     "Fixpnt16DType",
     "Fixpnt8DType",
+    # DSP fixed-point formats (TI / ADI)
+    "q7",
+    "q15",
+    "q31",
+    "iq24",
+    "q5_23",
+    "Q7DType",
+    "Q15DType",
+    "Q31DType",
+    "Iq24DType",
+    "Q5_23DType",
     # cascade (high-precision) types
     "dd_cascade",
     "DdCascadeDType",

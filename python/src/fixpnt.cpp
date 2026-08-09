@@ -48,9 +48,20 @@ struct FixpntTraitsBase {
     static bool is_zero(const cpp_t& v) { return to_double(v) == 0.0; }
 };
 
-#define UD_FIXPNT_LIST(X)                       \
-    X(16, 8, uint16_t, "fixpnt16", Fixpnt16)    \
-    X(8, 4, uint8_t, "fixpnt8", Fixpnt8)
+// General-purpose configs (fixpnt16/8) plus the standard DSP fixed-point formats
+// used by TI and Analog Devices processors:
+//   q7/q15/q31 : Q1.7 / Q1.15 / Q1.31 fractional (TI C5000/C6000, ADI 21xx/
+//                Blackfin/SHARC, ARM CMSIS-DSP) — range ~[-1, 1)
+//   iq24       : Q8.24, TI C2000 IQmath default (IQ24) — range +-128
+//   q5_23      : 5.23 (28-bit), ADI SigmaDSP audio — range +-16
+#define UD_FIXPNT_LIST(X)                        \
+    X(16, 8, uint16_t, "fixpnt16", Fixpnt16)     \
+    X(8, 4, uint8_t, "fixpnt8", Fixpnt8)         \
+    X(8, 7, uint8_t, "q7", Q7)                   \
+    X(16, 15, uint16_t, "q15", Q15)              \
+    X(32, 31, uint32_t, "q31", Q31)              \
+    X(32, 24, uint32_t, "iq24", Iq24)            \
+    X(28, 23, uint32_t, "q5_23", Q5_23)
 
 #define UD_FIXPNT_DEFINE(NBITS, RBITS, STORE, SNAME, CBASE)                              \
     struct CBASE##Traits : FixpntTraitsBase<NBITS, RBITS, STORE> {                       \

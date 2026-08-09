@@ -83,6 +83,8 @@ def test_pickle_and_casts():
 
 
 def test_registry():
-    assert set(ud.fixpnt_dtypes) == {"fixpnt16", "fixpnt8"}
+    # fixpnt_dtypes holds the general-purpose configs plus the DSP formats
+    # (q7/q15/q31/iq24/q5_23 — covered by test_fixpnt_dsp.py)
+    assert {"fixpnt16", "fixpnt8"} <= set(ud.fixpnt_dtypes)
     assert ud.fixpnt_dtypes["fixpnt16"] is ud.fixpnt16
     assert set(ud.fixpnt_dtypes) <= set(ud.dtypes)
