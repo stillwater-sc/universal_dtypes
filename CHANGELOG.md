@@ -36,6 +36,21 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.2.0 (2026-08-09)
+
+### Continuous Integration
+
+- **release**: Adopt conventional semver (feat -> minor, fix -> patch)
+  ([#15](https://github.com/stillwater-sc/universal_dtypes/pull/15),
+  [`4e5c752`](https://github.com/stillwater-sc/universal_dtypes/commit/4e5c7520b72d20de3aa09c32a55da13c65704945))
+
+### Features
+
+- **dtype**: Posit es-variants + non-power-of-two widths via codegen table
+  ([#17](https://github.com/stillwater-sc/universal_dtypes/pull/17),
+  [`174462a`](https://github.com/stillwater-sc/universal_dtypes/commit/174462a35157e23625e28789aa595d2ad2e4c3b8))
+
+
 ## v0.1.5 (2026-08-09)
 
 ### Features
