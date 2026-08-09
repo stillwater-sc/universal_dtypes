@@ -2,8 +2,8 @@
 
 `universal_dtypes` registers NumPy 2.x custom dtypes backed by Universal's C++
 number types. Every dtype supports array creation, casts (to/from float/int/
-bool), element-wise arithmetic, unary math ufuncs, comparisons, reductions, sort/
-argsort, and pickling.
+bool **and between any two universal dtypes**), element-wise arithmetic, unary
+math ufuncs, comparisons, reductions, sort/argsort, and pickling.
 
 ```python
 import numpy as np, universal_dtypes as ud
@@ -13,6 +13,28 @@ np.sum(a * 2)  # arithmetic + reductions
 a.astype(np.float32)  # casts
 np.dtype("posit16")  # string-name resolution
 ```
+
+## Casting between dtypes
+
+`astype` works between **any two** universal dtypes, not just to/from the builtin
+NumPy types:
+
+```python
+a = np.array([1.5, 2.25], dtype=ud.posit16)
+a.astype(ud.posit32)  # posit -> posit
+a.astype(ud.bfloat16)  # across number systems
+a.astype(ud.dd_cascade)  # into a high-precision cascade
+```
+
+Casts convert in the **value domain** (the represented real number), not by
+reinterpreting bits. All such casts are classified **unsafe** (a different number
+system may round), so `astype` performs them but implicit promotion does not.
+
+The conversion goes through a compensated multi-term expansion built from each
+type's own arithmetic, so it preserves the **source's full precision** — even when
+that exceeds `float64`'s 53 bits (`posit64` and the `dd`/`td`/`qd` cascades). A
+plain `float64` intermediate would silently drop those low bits; casting
+`posit64 → qd_cascade → posit64`, for instance, is bit-exact.
 
 ## Discoverability
 
