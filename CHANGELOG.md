@@ -14,12 +14,12 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **DSP processor fixed-point formats (TI / Analog Devices).** The standard
-  fixed-point formats of commercial DSPs, as saturating `fixpnt` dtypes:
-  `q7` / `q15` / `q31` (Q1.7 / Q1.15 / Q1.31 fractional — TI C5000/C6000, ADI
-  ADSP-21xx/Blackfin/SHARC, ARM CMSIS-DSP), `iq24` (Q8.24, TI C2000 IQmath's IQ24
-  default), and `q5_23` (5.23, ADI SigmaDSP audio). All join the `fixpnt_dtypes`
-  registry; see [`docs/dtypes.md`](docs/dtypes.md).
+- **DSP study: `applications/dsp/fir_coefficient_quantization.py`.** Quantizes a
+  31-tap low-pass FIR's coefficients to the DSP Q-formats and measures the
+  frequency response. `q31`/`q15` preserve the −58 dB stopband (the reason 16-bit
+  fixed-point DSPs carry real filters), while `q7` loses ~26 dB — the classic
+  "how many bits do my taps need" answer, with the new `q7`/`q15`/`q31` dtypes in
+  action.
 
 <!-- version list -->
 
