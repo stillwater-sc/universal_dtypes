@@ -36,6 +36,15 @@ semantic-release manages the **patch** component.
 
 <!-- version list -->
 
+## v0.1.5 (2026-08-09)
+
+### Features
+
+- **dtype**: Pickling + math ufuncs for the harness dtypes (posit polish)
+  ([#14](https://github.com/stillwater-sc/universal_dtypes/pull/14),
+  [`8ea665e`](https://github.com/stillwater-sc/universal_dtypes/commit/8ea665e125dd499b8b425b88a030cc32aeeb7989))
+
+
 ## v0.1.4 (2026-08-09)
 
 ### Features
