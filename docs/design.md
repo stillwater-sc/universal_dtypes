@@ -4,14 +4,18 @@
 
 Design and rationale for this package. `universal_dtypes` is a sister repo of
 [Universal](https://github.com/stillwater-sc/universal), modeled on
-[`ml_dtypes`](https://github.com/jax-ml/ml_dtypes). The repository is currently
-scaffolded (LICENSE + README); the NumPy dtype implementation has not started —
-it is the work formerly tracked as
-[mtl5-python issue #14](https://github.com/stillwater-sc/mtl5-python/issues/14),
-relocated here from the linear-algebra library, where it did not belong. Builds
-on the framework-by-framework feasibility analysis kept in mtl5-python
-(`docs/designs/custom-dtype-feasibility.md`) and settles **where** the work lives,
-not **whether** it is feasible.
+[`ml_dtypes`](https://github.com/jax-ml/ml_dtypes), providing first-class NumPy
+2.x custom dtypes for the Universal number systems. It is the work formerly
+tracked as [mtl5-python issue #14](https://github.com/stillwater-sc/mtl5-python/issues/14),
+relocated here from the linear-algebra library, where it did not belong.
+
+**Implemented and released on the `0.x` line.** The full dtype family ships —
+`bfloat16`, the posit family, `cfloat` (fp16/fp8e5m2), `lns`, `fixpnt` (incl. the
+TI/ADI DSP formats), and the `dd`/`td`/`qd` cascades — alongside the API-freeze
+work of epic #38: cross-dtype casts, the complete ufunc set, hashing, `float16`
+interop, a pinned reduction contract, a documented persistence / byte-order
+stance, and an optional pandas layer. The design record below reflects what
+shipped; only the zero-copy MTL5 contract (Decisions #4) remains open.
 
 ## Motivation
 
@@ -63,7 +67,7 @@ a natural **sister repo of Universal**.
   inputs map to the element type's exceptional value (posits have a single NaR,
   not separate ±inf/NaN). True **zero-copy** (a `universal_dtypes` array and an
   MTL5 container sharing one buffer) is a future goal that requires a defined
-  memory contract; see Open decisions.
+  memory contract; see Decisions (#4, zero-copy).
 
 ## Naming
 
@@ -134,8 +138,9 @@ API.
 
 The precise `universal_dtypes` reduction contract — result dtype, whether
 `dtype=` overrides accumulation precision, empty-input behavior, and final-
-rounding rules — is **deliberately left to implementation** (see Open decisions);
-pinning it in this proposal would invent decisions no consumer has driven yet.
+rounding rules — was left to implementation and has since been **pinned** (issue
+#48); see "Reductions and the accumulation contract" in [`dtypes.md`](dtypes.md),
+and Decisions (#5) below.
 
 ## Framework support
 
@@ -235,38 +240,50 @@ coexist without duplicating each other — both ride the shared NEP-42 harness
 unify them, do it explicitly (and keep the `ml_dtypes` oracle green), rather than
 silently having two `cfloat<16,8>` dtypes.
 
-## Open decisions
+## Decisions
 
-1. **Binding tech:** follow `ml_dtypes` (NumPy C API directly) or use nanobind as
-   mtl5-python does? `ml_dtypes` predates a nanobind-based dtype story; the NumPy
-   DType API is C-level regardless, so the choice is mostly about the surrounding
-   scaffolding.
-2. **Legacy vs. NEP 42 DType API:** which to target first, given NumPy 2.x. This
-   dominates the maintenance profile and should be decided before the posit16
-   proof of concept.
-3. **First family:** posit16 (per #14) — confirm it is also the format mpdsp
-   needs first.
+Most of the questions this proposal opened have since been settled by the
+implementation; they are recorded here (keeping their original numbering) so the
+design reflects what actually shipped. Only #4 remains genuinely open.
+
+**Decided:**
+
+1. **Binding tech — nanobind.** The `NB_MODULE(_core)` entry point owns the NumPy
+   import and dispatches to per-type registrars; the DType / ArrayMethod
+   machinery is plain NumPy C-API underneath. Implemented in `python/src/`.
+2. **DType API — NEP 42 (new-style), NumPy 2.x only.** Legacy
+   `PyArray_RegisterDataType` is not used; this is why the package requires
+   `numpy>=2`. Implemented for every dtype through the shared harness
+   `python/src/universal_dtype.hpp`.
+3. **First family — posit16 (with the `posit8/16/32/64` family).** Shipped; the
+   templated harness it established now backs cfloat / lns / fixpnt / the
+   cascades as well.
+5. **Reduction/ufunc contract — resolved (issue #48).** Reductions accumulate
+   naively **in-type**; `mean` and a wider `dtype=` accumulator require casting
+   first; empty-input identities match NumPy; math ufuncs round through `double`.
+   See "Reductions and the accumulation contract" in [`dtypes.md`](dtypes.md).
+
+**Still open:**
+
 4. **Zero-copy contract (deferred):** to move from conversion to true zero-copy
    between a `universal_dtypes` array and an MTL5 container, define the shared
    memory layout (element width/encoding), strides, buffer ownership and
-   lifetime, and mutability — and whether MTL5 factories gain a
-   borrow-a-buffer entry point. Until that exists, interop is a copy.
-5. **Reduction/ufunc contract (deferred):** for the NumPy ufuncs and reductions,
-   settle the result dtype, whether `dtype=` overrides accumulation precision,
-   empty-input semantics, and where the final rounding falls. Decide at
-   implementation with the first consumer, not speculatively here.
+   lifetime, and mutability — and whether MTL5 factories gain a borrow-a-buffer
+   entry point. Until that exists, interop is a copy. Additive; targeted after
+   `2.0.0`.
 
 ## Recommendation
 
-Endorse the split (this repo is that split). When a consumer (likely mpdsp)
-pulls it:
+Endorse the split (this repo is that split). The plan below has largely been
+executed — steps 1–3 and 5 are done; step 4 (the mtl5-python migration) is the
+remaining consumer-facing work.
 
-1. Reserve `universal_dtypes`/`universal-dtypes` on PyPI now (cheap, immutable
-   later).
-2. Build out this repo — NumPy core + optional pandas extra, depending on
-   Universal, **not** MTL5, **no** torch promise.
-3. Implement issue #14's `ml_dtypes` pattern here (posit16 first).
-4. Make mtl5-python depend on it and re-export for a compat window; keep the
-   quire/accumulator story in mtl5.
-5. Settle the two open API decisions (binding tech, legacy vs. NEP 42) before the
-   proof of concept.
+1. ✅ Reserve `universal_dtypes`/`universal-dtypes` on PyPI (done).
+2. ✅ Build out this repo — NumPy core + optional pandas extra, depending on
+   Universal, **not** MTL5, **no** torch promise (done; the pandas extra ships).
+3. ✅ Implement issue #14's `ml_dtypes` pattern here (posit16 first) — the full
+   dtype family plus the API-freeze work (epic #38) has landed.
+4. ⏳ Make mtl5-python depend on `universal-dtypes[pandas]` and re-export for a
+   compat window; keep the quire/accumulator story in mtl5.
+5. ✅ Settle the API decisions (binding tech, legacy vs. NEP 42) — see Decisions
+   (#1, #2): nanobind + NEP 42.
