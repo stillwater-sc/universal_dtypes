@@ -25,6 +25,19 @@ script into the relevant family directory (`examples/<family>/`) with a clear
 docstring stating the problem and an `assert` on the "universal wins" outcome —
 the CI runner (`tests/test_examples.py`) picks it up automatically.
 
+## Application studies
+
+Where the per-family demos isolate one type, these solve a real problem and
+compare **two or more** number systems on it — organized by application domain
+under [`applications/`](applications/).
+
+| study | domain | number systems | what it shows |
+|-------|--------|----------------|---------------|
+| [`applications/math/rump.py`](applications/math/rump.py) | math | float32/64, dd/td/qd | Rump's example: float64 *and* double-double are wrong; triple-double is the first precision that solves it |
+
+More application studies (DSP, ML, control) are being added the same way — a
+subdirectory per domain, each script self-asserting and CI-run.
+
 Examples that need MTL5's accelerated linear-algebra solvers belong in
 [`mtl5-python`](https://github.com/stillwater-sc/mtl5-python), not here — this set
 stays pure NumPy + `universal_dtypes`.
