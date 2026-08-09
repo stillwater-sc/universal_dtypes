@@ -14,13 +14,12 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **`examples/` — worked, runnable problems, one per number-system family.**
-  Self-contained NumPy scripts showing where each type wins:
-  catastrophic-cancellation summation (dd/td/qd cascades), bfloat16 vs float16
-  dynamic range, posit tapered precision + NaR, the fp16/fp8e5m2 precision–size
-  trade-off, and LNS log-domain / exact power-of-two scaling. Each asserts its
-  outcome and is executed in CI (`tests/test_examples.py`) so it can't rot. See
-  [`examples/README.md`](examples/README.md).
+- **Application studies (`examples/applications/`), starting with math.** A second
+  axis of examples that compare two or more number systems on a real problem.
+  First study: `applications/math/rump.py` — Rump's classic expression, where
+  float64 is astronomically wrong *and even double-double gives the wrong sign*;
+  triple-double is the first precision that recovers the true value. More domains
+  (DSP, ML, control) follow.
 
 <!-- version list -->
 
