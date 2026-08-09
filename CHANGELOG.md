@@ -23,6 +23,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.18.0 (2026-08-09)
+
+### Features
+
+- **examples**: Dsp/iir_limit_cycles — fixed-point recursive-filter limit cycles
+  ([#36](https://github.com/stillwater-sc/universal_dtypes/pull/36),
+  [`4a7df73`](https://github.com/stillwater-sc/universal_dtypes/commit/4a7df7357b625dc2f9ebc8636ae4e44be93943e4))
+
+
 ## v0.17.0 (2026-08-09)
 
 ### Features
