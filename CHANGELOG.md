@@ -24,6 +24,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.9.0 (2026-08-09)
+
+### Features
+
+- **examples**: Scaffold examples/ with one worked example per dtype family
+  ([#25](https://github.com/stillwater-sc/universal_dtypes/pull/25),
+  [`d54b6c1`](https://github.com/stillwater-sc/universal_dtypes/commit/d54b6c1fe8e4d25522b2001142b6752c74df33e4))
+
+
 ## v0.8.0 (2026-08-09)
 
 ### Features
