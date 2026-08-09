@@ -26,6 +26,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.5.0 (2026-08-09)
+
+### Features
+
+- **dtype**: Lns dtypes lns16 + lns32 via the harness
+  ([#21](https://github.com/stillwater-sc/universal_dtypes/pull/21),
+  [`851d810`](https://github.com/stillwater-sc/universal_dtypes/commit/851d810020407eaec251ce2a340611f47129323a))
+
+
 ## v0.4.0 (2026-08-09)
 
 ### Features
