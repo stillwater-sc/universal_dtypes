@@ -2,8 +2,9 @@
 
 `universal_dtypes` registers NumPy 2.x custom dtypes backed by Universal's C++
 number types. Every dtype supports array creation, casts (to/from float/int/
-bool **and between any two universal dtypes**), element-wise arithmetic, unary
-math ufuncs, comparisons, reductions, sort/argsort, and pickling.
+bool **and between any two universal dtypes**), element-wise arithmetic
+(including `**`, `minimum`/`maximum`, `clip`), unary math ufuncs, comparisons,
+reductions (`sum`, `prod`, `min`, `max`), sort/argsort, and pickling.
 
 ```python
 import numpy as np, universal_dtypes as ud

@@ -14,22 +14,14 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Features
 
-- **Cross-dtype casts.** `astype` now works between any two universal dtypes
-  (`posit16 → posit32`, `dd_cascade → bfloat16`, …), not just to/from builtin
-  NumPy types. Conversion is value-domain via a compensated multi-term expansion
-  built from each type's own arithmetic, so it preserves the source's full
-  precision even past `float64`'s 53 bits (`posit64` and the `dd`/`td`/`qd`
-  cascades); e.g. `posit64 → qd_cascade → posit64` is bit-exact. One shared
-  loop + a runtime registry serve every pair (no per-pair template bloat).
-  Closes #39.
-
-### Documentation
-
-- **`docs/RELEASING.md`: major-release procedure.** Documents that the first
-  stable major must be `2.0.0` — the accidental early `1.0.0` was yanked and PyPI
-  never frees a version number, so `1.0.0` is unusable forever — plus the manual
-  steps to cut `2.0.0` and how automation resumes afterward. Also corrects the
-  stale version-policy note to conventional semver (`feat` → minor).
+- **`power`, `minimum`/`maximum`, `fmin`/`fmax`, and `clip` ufuncs.** `a ** b`,
+  `np.min`/`np.max`, `np.clip`, and `np.nanmin`/`np.nanmax` now work in-type.
+  `minimum`/`maximum` propagate NaN and `fmin`/`fmax` suppress it (matching
+  NumPy); all compare at full precision via each type's own ordering, so the
+  cascades pick the truly-smaller value even below `float64`'s resolution.
+  `power` computes in `double` then rounds back. `clip` is registered as its own
+  3-input ufunc (NumPy 2.x no longer composes it from `minimum`/`maximum`).
+  Closes #40, #41.
 
 <!-- version list -->
 
