@@ -34,10 +34,11 @@ On the push, the `release` job runs `semantic-release`, which:
 Non-release commits (`docs:`/`chore:`/`ci:`/`build:`) are a no-op: the `release`
 job runs, finds nothing to release, and the build/publish jobs skip.
 
-**Version policy:** `semantic-release` manages the **patch** component
-(`feat`/`fix`/`perf`/`refactor` → patch, per `pyproject.toml`); the package
-stays on `0.x` (`allow_zero_version = true`). Bump the **minor/major** manually
-(see below) to track the Universal release the dtypes target.
+**Version policy:** conventional semver on `0.x`. `semantic-release` bumps the
+**minor** on a `feat` and the **patch** on `fix`/`perf`/`refactor` (per
+`pyproject.toml`). While on `0.x` (`allow_zero_version = true`,
+`major_on_zero = false`) a breaking change bumps the **minor**, not the major — a
+**major release is deliberate and manual** (see *Major release*, §3).
 
 ### 2. Manual — first release, or a deliberate minor/major
 
@@ -52,13 +53,46 @@ Publishing a GitHub Release fires the `release: published` trigger → build +
   release from a repo with no tags (and would otherwise mis-default) — cut it by
   hand. A baseline tag `v0.1.0` already exists, so this only matters for a fresh
   repo.
-- **Cut an intentional minor/major.** First set `version` in `pyproject.toml`,
-  commit it, then create the release at that version.
+- **Cut an intentional minor.** First set `version` in `pyproject.toml`, commit
+  it, then create the release at that version. (For a **major**, see §3.)
 
 > `gh release create` authenticates with your **user** token, whose event
 > *cascades* to the `release` trigger. A release created by CI's `GITHUB_TOKEN`
 > would **not** cascade — which is why the automated path builds+publishes inside
 > the same run rather than relying on a second workflow.
+
+### 3. Major release — and why the first stable one is `2.0.0`
+
+A major (`1.0`/`2.0`/…) is an **API-stability commitment**, so it is always
+deliberate and manual. Two project-specific rules:
+
+- **The first major is `2.0.0`, not `1.0.0`.** An accidental `1.0.0` was published
+  very early (a `semantic-release` config bug — `allow_zero_version` defaulted to
+  false and force-escaped `0.x` to `1.0.0`) and then **yanked**. PyPI never frees
+  a version number: yanked *or* deleted, `1.0.0` can never be re-uploaded, so any
+  attempt to publish a real `1.0.0` is rejected as a duplicate. The first stable
+  major therefore **skips it**: `0.x → 2.0.0`.
+- **Automation will not do it for you.** With `major_on_zero = false`, a breaking
+  change bumps the *minor* while on `0.x`, and there are no `major_tags`. Left to
+  `semantic-release`, a forced major from `0.x` would compute `1.0.0` — which PyPI
+  rejects. So force the jump to `2.0.0` once, by hand.
+
+To cut it:
+
+1. Set `version = "2.0.0"` in `pyproject.toml`, and add a hand-written `## v2.0.0`
+   section to `CHANGELOG.md` (`semantic-release` won't compute this jump).
+2. Commit, then create an **annotated** tag and release at that version:
+   ```bash
+   git tag -a v2.0.0 -m "v2.0.0"   # annotated: semantic-release adopts it as the baseline
+   git push origin v2.0.0
+   gh release create v2.0.0 --target main --generate-notes --latest  # -> build + publish-pypi
+   ```
+3. Once `v2.0.0` is the baseline, automation resumes normally: `fix` → `2.0.1`,
+   `feat` → `2.1.0`, and a `feat!:` / `BREAKING CHANGE:` footer → `3.0.0`
+   (breaking-change detection is independent of the tag lists). The `0.x` notes
+   and `major_on_zero` no longer apply; drop them at that point.
+
+The yanked `1.0.0` is never revisited: `0.x → 2.0.0 → 2.x → 3.0.0`.
 
 ## Release to TestPyPI (dry-run)
 
