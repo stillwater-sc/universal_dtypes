@@ -37,6 +37,7 @@ struct Bfloat16Traits {
     static cpp_t from_double(double d) { return cpp_t(static_cast<float>(d)); }
     static double to_double(const cpp_t& v) { return static_cast<double>(v); }
     static bool is_nan(const cpp_t& v) { return std::isnan(static_cast<float>(v)); }
+    static bool is_inf(const cpp_t& v) { return std::isinf(static_cast<float>(v)); }
 };
 
 }  // namespace

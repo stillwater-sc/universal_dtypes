@@ -31,6 +31,7 @@ namespace nb = nanobind;
 // dtype registrars (own translation units, sharing the numpy API tables above).
 void register_bfloat16(nb::module_& m);  // python/src/bfloat16.cpp
 void register_posits(nb::module_& m);    // python/src/posit.cpp
+void register_cfloats(nb::module_& m);   // python/src/cfloat.cpp
 
 NB_MODULE(_core, m) {
     if (_import_array() < 0) throw std::runtime_error("numpy multiarray import failed");
@@ -38,6 +39,7 @@ NB_MODULE(_core, m) {
 
     register_bfloat16(m);
     register_posits(m);
+    register_cfloats(m);
 
     m.doc() = "universal_dtypes core — NumPy dtypes for the Universal number systems";
     m.attr("__version__") = UNIVERSAL_DTYPES_VERSION;

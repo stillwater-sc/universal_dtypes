@@ -178,6 +178,7 @@ def test_registries():
     for name, scalar, _ in POSITS_ALL:
         assert ud.posit_dtypes[name] is scalar
         assert np.dtype(ud.posit_dtypes[name]) == np.dtype(scalar)
-    # dtypes is posit_dtypes plus bfloat16.
+    # the top-level dtypes registry includes the posit family (plus bfloat16 and
+    # the cfloat configs, covered by their own tests).
     assert ud.dtypes["bfloat16"] is ud.bfloat16
-    assert set(ud.dtypes) == set(ud.posit_dtypes) | {"bfloat16"}
+    assert set(ud.posit_dtypes) <= set(ud.dtypes)
