@@ -24,6 +24,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.11.0 (2026-08-09)
+
+### Features
+
+- **examples**: Application study — ml/quantized_mlp (inference quantization)
+  ([#27](https://github.com/stillwater-sc/universal_dtypes/pull/27),
+  [`92ea719`](https://github.com/stillwater-sc/universal_dtypes/commit/92ea719e114458fe4967a9533e92f1986cb2065b))
+
+
 ## v0.10.0 (2026-08-09)
 
 ### Features
