@@ -14,17 +14,13 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Added
 
-- **`qd_cascade` NumPy dtype (issue #6)** — Universal's quad-double: ~212-bit
-  significand (unevaluated sum of four float64), a 32-byte element, the highest
-  cascade tier. Completes the dd/td/qd cascade family, all on the same multi-word
-  pattern. Same rules — `float64 → qd_cascade` exact, `qd_cascade → float64`
-  unsafe/lossy, full-precision comparison/sort. Demonstrated on a four-magnitude
-  cancellation (`1e30 + 1 + 1e-15 + 1e-30 − 1e30 − 1 − 1e-15`) that triple-double
-  cannot retain.
-
-  With this, the initial dtype epic (#2) is complete: `bfloat16`, the `posit`
-  family, `cfloat` (`fp16`/`fp8e5m2`), `lns16`/`lns32`, and the dd/td/qd cascades
-  — all on the shared NEP-42 harness.
+- **`examples/` — worked, runnable problems, one per number-system family.**
+  Self-contained NumPy scripts showing where each type wins:
+  catastrophic-cancellation summation (dd/td/qd cascades), bfloat16 vs float16
+  dynamic range, posit tapered precision + NaR, the fp16/fp8e5m2 precision–size
+  trade-off, and LNS log-domain / exact power-of-two scaling. Each asserts its
+  outcome and is executed in CI (`tests/test_examples.py`) so it can't rot. See
+  [`examples/README.md`](examples/README.md).
 
 <!-- version list -->
 

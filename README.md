@@ -80,6 +80,10 @@ np.zeros(4, dtype="posit16")
 np.arange(8, dtype="fp8")
 ```
 
+Worked, runnable problems — one per number-system family, showing where each type
+wins — live in [`examples/`](examples/) (see its
+[README](examples/README.md)).
+
 ## Specifications of implemented number formats
 
 ### Posits — `posit8`, `posit16`, `posit32`, `posit64`
