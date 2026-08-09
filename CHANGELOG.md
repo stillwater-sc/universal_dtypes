@@ -40,6 +40,15 @@ semantic-release manages the **patch** component.
 
 <!-- version list -->
 
+## v0.1.4 (2026-08-09)
+
+### Features
+
+- **dtype**: Posit8/16/32/64 dtypes + reusable templated-type harness
+  ([#13](https://github.com/stillwater-sc/universal_dtypes/pull/13),
+  [`b3cf330`](https://github.com/stillwater-sc/universal_dtypes/commit/b3cf330595435eadabf85f303a788dccdd9aab17))
+
+
 ## v0.1.3 (2026-08-08)
 
 ### Features
