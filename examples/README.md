@@ -40,6 +40,7 @@ under [`applications/`](applications/).
 | [`applications/dsp/fixed_point_integrator.py`](applications/dsp/fixed_point_integrator.py) | dsp | fixpnt16, fp16/posit16, bfloat16 | an integrator: fixed-point adds exactly within range while floating point drifts — and bfloat16 stalls (swamping) |
 | [`applications/dsp/fir_coefficient_quantization.py`](applications/dsp/fir_coefficient_quantization.py) | dsp | q7 / q15 / q31 | FIR taps in the DSP Q-formats: q15/q31 preserve the filter (why 16-bit DSPs work); q7 wrecks the stopband |
 | [`applications/dsp/sigmadsp_audio.py`](applications/dsp/sigmadsp_audio.py) | dsp | q5_23, q15, fp16 | ADI SigmaDSP-style audio: q5_23 (5.23) gives ~136 dB fidelity and the mixing headroom q15 clips away |
+| [`applications/dsp/iir_limit_cycles.py`](applications/dsp/iir_limit_cycles.py) | dsp | float64, q31/q15, bfloat16 | recursive-filter limit cycles: fixed-point q15 gets stuck in a dead-band (shrinks q15→q31); a float exponent decays cleanly |
 
 To add an application study, drop a script into `examples/applications/<domain>/`
 (same conventions: clear docstring, self-asserting) — the CI runner picks it up.
