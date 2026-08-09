@@ -50,8 +50,7 @@ overhead. Arithmetic uses error-free transformations (two-sum / two-prod).
 |--------|----------------|---------:|-------------|
 | `dd_cascade` | double-double (2 × float64) | 16 | ~106 bits (~31 decimal digits) |
 | `td_cascade` | triple-double (3 × float64) | 24 | ~159 bits (~47 decimal digits) |
-
-(`qd_cascade` — quad-double — will follow, reusing the same multi-word storage.)
+| `qd_cascade` | quad-double (4 × float64) | 32 | ~212 bits (~62 decimal digits) |
 
 These are the first **multi-word** dtypes (itemsize > one scalar word). Two
 precision-aware rules apply:

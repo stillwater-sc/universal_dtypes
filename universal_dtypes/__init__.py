@@ -13,9 +13,9 @@ Provides NumPy 2.x custom dtypes backed by Universal's C++ number types:
 - ``lns16`` / ``lns32`` — logarithmic number system (``lns<16,8>`` / ``lns<32,16>``):
   multiply/divide are exact in the exponent; add/subtract use Universal's
   Gaussian-log routines.
-- ``dd_cascade`` / ``td_cascade`` — double-double (~106-bit, 16-byte) and
-  triple-double (~159-bit, 24-byte) high-precision types; arithmetic uses
-  error-free transformations.
+- ``dd_cascade`` / ``td_cascade`` / ``qd_cascade`` — double-double (~106-bit,
+  16-byte), triple-double (~159-bit, 24-byte), and quad-double (~212-bit, 32-byte)
+  high-precision types; arithmetic uses error-free transformations.
 
 Each dtype supports array creation, casts, element-wise arithmetic and math
 ufuncs, comparisons, reductions, sort, and pickling. Use them like any dtype::
@@ -61,6 +61,7 @@ from universal_dtypes._core import (  # noqa: E402
     Posit40DType,
     Posit48DType,
     Posit64DType,
+    QdCascadeDType,
     TdCascadeDType,
     bfloat16,
     build_info,
@@ -83,6 +84,7 @@ from universal_dtypes._core import (  # noqa: E402
     posit40,
     posit48,
     posit64,
+    qd_cascade,
     td_cascade,
 )
 
@@ -116,10 +118,11 @@ lns_dtypes = {
     "lns32": lns32,
 }
 
-# high-precision cascades (multi-word storage); qd_cascade arrives with #6.
+# high-precision cascades (multi-word storage): the complete dd/td/qd family.
 cascade_dtypes = {
     "dd_cascade": dd_cascade,
     "td_cascade": td_cascade,
+    "qd_cascade": qd_cascade,
 }
 
 dtypes = {"bfloat16": bfloat16, **cfloat_dtypes, **posit_dtypes, **lns_dtypes, **cascade_dtypes}
@@ -140,6 +143,8 @@ __all__ = [
     "DdCascadeDType",
     "td_cascade",
     "TdCascadeDType",
+    "qd_cascade",
+    "QdCascadeDType",
     # cfloat scalar types + dtype classes
     "fp16",
     "fp8e5m2",

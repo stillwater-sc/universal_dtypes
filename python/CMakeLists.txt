@@ -21,7 +21,8 @@ nanobind_add_module(_core
     src/cfloat.cpp
     src/lns.cpp
     src/dd.cpp
-    src/td.cpp)
+    src/td.cpp
+    src/qd.cpp)
 
 # Header-only Universal number systems.
 target_link_libraries(_core PRIVATE universal)
