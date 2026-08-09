@@ -827,8 +827,23 @@ struct UniversalDType {
         return uf;
     }
 
+    // Reduction identities, so an empty sum/prod returns the identity (matching
+    // NumPy: sum([]) -> 0, prod([]) -> 1) instead of raising. min/max
+    // deliberately have none — NumPy itself raises on an empty min/max.
+    static int reduce_init_zero(PyArrayMethod_Context*, npy_bool, void* initial) {
+        storage_t b = Traits::to_bits(Traits::from_double(0.0));
+        std::memcpy(initial, &b, ELSIZE);
+        return 1;
+    }
+    static int reduce_init_one(PyArrayMethod_Context*, npy_bool, void* initial) {
+        storage_t b = Traits::to_bits(Traits::from_double(1.0));
+        std::memcpy(initial, &b, ELSIZE);
+        return 1;
+    }
+
     static int add_ufunc(const char* ufunc_name, PyArray_DTypeMeta** dtypes, int nin, int nout,
-                         PyArrayMethod_StridedLoop* loop) {
+                         PyArrayMethod_StridedLoop* loop,
+                         PyArrayMethod_GetReductionInitial* initial = nullptr) {
         PyObject* ufunc = get_ufunc(ufunc_name);
         if (!ufunc) return -1;
         void* resolve = (nin + nout == 2)   ? (void*)&ufunc_resolve<2>
@@ -838,8 +853,10 @@ struct UniversalDType {
             {NPY_METH_resolve_descriptors, resolve},
             {NPY_METH_strided_loop, (void*)loop},
             {NPY_METH_unaligned_strided_loop, (void*)loop},
+            {0, nullptr},  // optional NPY_METH_get_reduction_initial
             {0, nullptr},
         };
+        if (initial) slots[3] = {NPY_METH_get_reduction_initial, (void*)initial};
         PyArrayMethod_Spec spec;
         spec.name = ufunc_name; spec.nin = nin; spec.nout = nout;
         spec.casting = NPY_NO_CASTING; spec.flags = NPY_METH_SUPPORTS_UNALIGNED;
@@ -855,9 +872,11 @@ struct UniversalDType {
         PyArray_DTypeMeta* tto[3] = {&DType, &DType, &PyArray_BoolDType};
         PyArray_DTypeMeta* to[2] = {&DType, &PyArray_BoolDType};
 
-        if (add_ufunc("add", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_add>)) return -1;
+        if (add_ufunc("add", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_add>,
+                      &reduce_init_zero)) return -1;  // sum([]) -> 0
         if (add_ufunc("subtract", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_sub>)) return -1;
-        if (add_ufunc("multiply", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_mul>)) return -1;
+        if (add_ufunc("multiply", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_mul>,
+                      &reduce_init_one)) return -1;  // prod([]) -> 1
         if (add_ufunc("true_divide", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_div>)) return -1;
         // power computes in double then rounds back (like the unary math ufuncs).
         if (add_ufunc("power", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&math2_loop<m2_pow>)) return -1;

@@ -14,13 +14,18 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Features
 
-- **Scalar `__hash__`.** Scalars are now hashable and usable as `dict`/`set`
-  keys. The hash is defined on the value (which is what scalar `==` compares), so
-  it is consistent with equality and matches Python's `float`/`int` hashing — a
-  scalar and the equal `float`/`int` share a hash, as NumPy scalars do. Closes #42.
-- **float16 casts.** `astype` to/from `numpy.float16` now works (both directions,
-  via the value domain using NumPy's own half helpers, so results match NumPy's
-  float16 casts bit-for-bit). Closes #43.
+- **Empty-reduction identities.** `np.sum([])` now returns `0` and `np.prod([])`
+  returns `1` (the type's representation of the identity) instead of raising, via
+  a `get_reduction_initial` slot on the `add`/`multiply` loops — matching NumPy.
+  (`min`/`max` of an empty array still raise, as in NumPy.)
+
+### Documentation
+
+- **Reduction / accumulation contract** (`docs/dtypes.md`). Pins the frozen
+  v2.0.0 semantics: `sum`/`prod` accumulate naively **in-type** (no hidden wider
+  accumulator, so they can swamp); `min`/`max` compare at full precision; `mean`
+  and a `dtype=` accumulation override are **not** in-type — cast first
+  (`a.astype(np.float64).mean()`). Tests pin each behaviour. Closes #48.
 
 <!-- version list -->
 
