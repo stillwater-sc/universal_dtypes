@@ -91,8 +91,9 @@ custom dtype via the pickle protocol rather than the plain `.npy` binary header.
 **These dtypes are native-endian only.** Array storage is the raw element bytes,
 with no byte-order tag: `np.dtype(ud.posit16).byteorder` is `'|'` (not
 applicable), and NumPy 2.x's new-style DType API does not support `newbyteorder`
-or `byteswap` for them (both raise). Consequently a file written on one platform
-is **not** guaranteed to load on a platform of different endianness. The target
+or `byteswap` for them — don't call those (they are unsupported, and on some
+NumPy 2.x versions they crash rather than raise). Consequently a file written on
+one platform is **not** guaranteed to load on a platform of different endianness. The target
 ecosystem is little-endian, so this is an accepted limitation for now;
 cross-endian support is purely additive and can be added later without breaking
 anyone. (Individual *scalars* pickle by value — their `__reduce__` stores the

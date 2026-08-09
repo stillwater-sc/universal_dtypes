@@ -71,14 +71,9 @@ def test_multiword_cascade_roundtrips():
 
 @pytest.mark.parametrize("name,T", ALL)
 def test_dtype_has_no_byteorder(name, T):
-    # '|' == "not applicable": these dtypes carry no endianness tag
+    # '|' == "not applicable": these dtypes carry no endianness tag, which is the
+    # safe, portable way to observe that byte order is not a concept for them.
+    # (We deliberately do NOT call byteswap()/newbyteorder() here: on new-style
+    # DTypes those are unsupported, and on some NumPy 2.x versions they crash
+    # rather than raise — see docs/dtypes.md.)
     assert np.dtype(T).byteorder == "|"
-
-
-@pytest.mark.parametrize("name,T", ALL)
-def test_byteswap_and_newbyteorder_unsupported(name, T):
-    a = _arr(GRID, T)
-    with pytest.raises(TypeError):
-        a.byteswap()
-    with pytest.raises(TypeError):
-        np.dtype(T).newbyteorder(">")
