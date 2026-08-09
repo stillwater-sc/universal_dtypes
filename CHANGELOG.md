@@ -12,20 +12,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ## [Unreleased]
 
-### Features
-
-- **Empty-reduction identities.** `np.sum([])` now returns `0` and `np.prod([])`
-  returns `1` (the type's representation of the identity) instead of raising, via
-  a `get_reduction_initial` slot on the `add`/`multiply` loops — matching NumPy.
-  (`min`/`max` of an empty array still raise, as in NumPy.)
-
 ### Documentation
 
-- **Reduction / accumulation contract** (`docs/dtypes.md`). Pins the frozen
-  v2.0.0 semantics: `sum`/`prod` accumulate naively **in-type** (no hidden wider
-  accumulator, so they can swamp); `min`/`max` compare at full precision; `mean`
-  and a `dtype=` accumulation override are **not** in-type — cast first
-  (`a.astype(np.float64).mean()`). Tests pin each behaviour. Closes #48.
+- **Persistence & byte-order contract** (`docs/dtypes.md`). Pins the frozen
+  v2.0.0 behavior: arrays round-trip via pickle / `np.save`+`np.load`
+  (`allow_pickle=True`) / raw bytes **on the same platform**, and the dtypes are
+  **native-endian only** — they carry no byte-order tag (`dtype.byteorder` is
+  `'|'`) and NumPy 2.x new-style DTypes support neither `newbyteorder` nor
+  `byteswap`. Cross-endian support is additive and deferred. Tests pin each
+  behaviour. Closes #49.
 
 <!-- version list -->
 
