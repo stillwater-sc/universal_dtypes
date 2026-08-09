@@ -23,6 +23,15 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 <!-- version list -->
 
+## v0.17.0 (2026-08-09)
+
+### Features
+
+- **examples**: Iq24 IQmath control loop + q5_23 SigmaDSP audio pipeline
+  ([#35](https://github.com/stillwater-sc/universal_dtypes/pull/35),
+  [`98146fa`](https://github.com/stillwater-sc/universal_dtypes/commit/98146fa0644872d2a141485757001ba71d134f3d))
+
+
 ## v0.16.0 (2026-08-09)
 
 ### Features
