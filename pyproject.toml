@@ -22,7 +22,7 @@ Universal = "https://github.com/stillwater-sc/universal"
 
 [project.optional-dependencies]
 pandas = ["pandas>=2.0"]
-dev = ["pytest>=7.0", "numpy>=2", "ml_dtypes"]
+dev = ["pytest>=7.0", "numpy>=2", "ml_dtypes", "pandas>=2"]
 
 [tool.scikit-build]
 cmake.build-type = "Release"

@@ -12,15 +12,16 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ## [Unreleased]
 
-### Documentation
+### Features
 
-- **Persistence & byte-order contract** (`docs/dtypes.md`). Pins the frozen
-  v2.0.0 behavior: arrays round-trip via pickle / `np.save`+`np.load`
-  (`allow_pickle=True`) / raw bytes **on the same platform**, and the dtypes are
-  **native-endian only** — they carry no byte-order tag (`dtype.byteorder` is
-  `'|'`) and NumPy 2.x new-style DTypes support neither `newbyteorder` nor
-  `byteswap`. Cross-endian support is additive and deferred. Tests pin each
-  behaviour. Closes #49.
+- **pandas integration** (the `[pandas]` extra). `import universal_dtypes.pandas_ext`
+  registers a pandas `ExtensionDtype`/`ExtensionArray` for **every** universal
+  dtype, thinly backed by the NumPy dtype (pure Python, no MTL5). Supports
+  `pd.array`/`pd.Series`/`DataFrame` construction by name, indexing/slicing,
+  `isna`, `take`, `concat`, `factorize`, reductions, and `astype` (reusing the
+  value-domain cross-casts). Classes are exposed by CamelCase name
+  (`Posit16Dtype`/`Posit16Array`, …) for downstream re-export. The core package
+  still never imports pandas. Closes #47.
 
 <!-- version list -->
 

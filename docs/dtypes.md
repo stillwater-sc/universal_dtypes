@@ -99,6 +99,33 @@ cross-endian support is purely additive and can be added later without breaking
 anyone. (Individual *scalars* pickle by value — their `__reduce__` stores the
 `double` — so a single scalar is portable; arrays store raw bytes.)
 
+## pandas integration (optional)
+
+Install the extra and import the (opt-in) integration module — the core package
+never imports pandas:
+
+```bash
+pip install 'universal_dtypes[pandas]'
+```
+
+```python
+import pandas as pd
+import universal_dtypes.pandas_ext  # registers the pandas dtypes
+
+s = pd.Series([1.5, 2.25, 3.0], dtype="posit16")  # by name
+s.max()
+s.astype("posit32")
+s.astype(float)  # reductions + casts
+pd.DataFrame({"x": pd.array([1.0, 2.0], dtype="bfloat16")})
+```
+
+Every universal dtype gets a pandas `ExtensionDtype`/`ExtensionArray` pair, thinly
+backed by the NumPy dtype (pure Python, no MTL5). The classes are also exposed by
+CamelCase name — `universal_dtypes.pandas_ext.Posit16Dtype` / `Posit16Array` — for
+downstream re-export. `astype` between universal dtypes reuses the value-domain
+cross-casts above; `mean`/`std` follow the same "cast first" rule as the NumPy
+reductions.
+
 ## Discoverability
 
 The set of dtypes is compiled in, so these registries are the source of truth for
