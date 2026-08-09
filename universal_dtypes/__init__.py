@@ -66,11 +66,35 @@ from universal_dtypes._core import (  # noqa: E402
     posit64,
 )
 
+# Discoverability: name -> scalar type for every registered dtype. `np.dtype()`
+# of any value here yields the NumPy dtype; iterate the mapping to enumerate what
+# this build ships. (The shipped set is compiled in — see python/src/posit.cpp's
+# UD_POSIT_LIST — so these registries are the source of truth for "what exists".)
+posit_dtypes = {
+    "posit8": posit8,
+    "posit16": posit16,
+    "posit32": posit32,
+    "posit64": posit64,
+    "posit8e0": posit8e0,
+    "posit8e1": posit8e1,
+    "posit16e1": posit16e1,
+    "posit12": posit12,
+    "posit20": posit20,
+    "posit24": posit24,
+    "posit28": posit28,
+    "posit40": posit40,
+    "posit48": posit48,
+}
+
+dtypes = {"bfloat16": bfloat16, **posit_dtypes}
+
 __all__ = [
     "__version__",
     "bfloat16",
     "Bfloat16DType",
     "build_info",
+    "dtypes",
+    "posit_dtypes",
     "posit16_roundtrip",
     # posit scalar types
     "posit8",
