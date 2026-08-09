@@ -14,14 +14,13 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ### Features
 
-- **`power`, `minimum`/`maximum`, `fmin`/`fmax`, and `clip` ufuncs.** `a ** b`,
-  `np.min`/`np.max`, `np.clip`, and `np.nanmin`/`np.nanmax` now work in-type.
-  `minimum`/`maximum` propagate NaN and `fmin`/`fmax` suppress it (matching
-  NumPy); all compare at full precision via each type's own ordering, so the
-  cascades pick the truly-smaller value even below `float64`'s resolution.
-  `power` computes in `double` then rounds back. `clip` is registered as its own
-  3-input ufunc (NumPy 2.x no longer composes it from `minimum`/`maximum`).
-  Closes #40, #41.
+- **Scalar `__hash__`.** Scalars are now hashable and usable as `dict`/`set`
+  keys. The hash is defined on the value (which is what scalar `==` compares), so
+  it is consistent with equality and matches Python's `float`/`int` hashing — a
+  scalar and the equal `float`/`int` share a hash, as NumPy scalars do. Closes #42.
+- **float16 casts.** `astype` to/from `numpy.float16` now works (both directions,
+  via the value domain using NumPy's own half helpers, so results match NumPy's
+  float16 casts bit-for-bit). Closes #43.
 
 <!-- version list -->
 

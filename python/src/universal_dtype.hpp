@@ -52,6 +52,7 @@
 
 #include <numpy/arrayobject.h>
 #include <numpy/dtype_api.h>
+#include <numpy/halffloat.h>
 #include <numpy/ndarraytypes.h>
 #include <numpy/ufuncobject.h>
 
@@ -220,6 +221,18 @@ struct UniversalDType {
 
     static PyObject* scalar_float(PyObject* self) {
         return PyFloat_FromDouble(scalar_value(self));
+    }
+
+    // Hash of the scalar's value. Scalar equality (scalar_richcompare) is defined
+    // on the double value, so hashing that same value keeps hash consistent with
+    // __eq__ (the data-model requirement) and matches Python's float/int hashing,
+    // so a scalar and the equal `float`/`int` share a hash — as NumPy scalars do.
+    static Py_hash_t scalar_hash(PyObject* self) {
+        PyObject* f = PyFloat_FromDouble(scalar_value(self));
+        if (!f) return -1;
+        Py_hash_t h = PyObject_Hash(f);
+        Py_DECREF(f);
+        return h;
     }
 
     static PyObject* scalar_repr(PyObject* self) {
@@ -467,6 +480,36 @@ struct UniversalDType {
         std::memcpy(out, &rb, ELSIZE);
     }
 
+    // float16 needs dedicated loops: npy_half is a 16-bit bit pattern, not a C
+    // floating type, so the cast_to_builtin/from_builtin static_cast path would
+    // corrupt it. Convert through the value domain with numpy's half helpers.
+    static int cast_to_half(PyArrayMethod_Context*, char* const data[], npy_intp const dims[],
+                            npy_intp const strides[], NpyAuxData*) {
+        npy_intp N = dims[0];
+        char *in = data[0], *out = data[1];
+        while (N--) {
+            storage_t bits;
+            std::memcpy(&bits, in, ELSIZE);
+            npy_half h = npy_double_to_half(Traits::to_double(Traits::from_bits(bits)));
+            std::memcpy(out, &h, sizeof(npy_half));
+            in += strides[0]; out += strides[1];
+        }
+        return 0;
+    }
+    static int cast_from_half(PyArrayMethod_Context*, char* const data[], npy_intp const dims[],
+                              npy_intp const strides[], NpyAuxData*) {
+        npy_intp N = dims[0];
+        char *in = data[0], *out = data[1];
+        while (N--) {
+            npy_half h;
+            std::memcpy(&h, in, sizeof(npy_half));
+            storage_t bits = Traits::to_bits(Traits::from_double(npy_half_to_double(h)));
+            std::memcpy(out, &bits, ELSIZE);
+            in += strides[0]; out += strides[1];
+        }
+        return 0;
+    }
+
     static NPY_CASTING builtin_resolve(PyObject*, PyArray_DTypeMeta* const dtypes[2],
                                        PyArray_Descr* const given[2], PyArray_Descr* loop[2],
                                        npy_intp*) {
@@ -529,6 +572,11 @@ struct UniversalDType {
                                   (PyArrayMethod_StridedLoop*)&cast_from_builtin<long>, NPY_UNSAFE_CASTING));
         casts.push_back(make_cast("from_bool", &PyArray_BoolDType, &DType,
                                   (PyArrayMethod_StridedLoop*)&cast_from_builtin<npy_bool>, NPY_UNSAFE_CASTING));
+        // float16 (both directions UNSAFE — half's 11-bit significand is lossy).
+        casts.push_back(make_cast("to_half", &DType, &PyArray_HalfDType,
+                                  (PyArrayMethod_StridedLoop*)&cast_to_half, NPY_UNSAFE_CASTING));
+        casts.push_back(make_cast("from_half", &PyArray_HalfDType, &DType,
+                                  (PyArrayMethod_StridedLoop*)&cast_from_half, NPY_UNSAFE_CASTING));
 
         // Cross-dtype casts to/from every universal dtype registered before this
         // one (all fully initialized). This dtype's own side is NULL ("the newly
@@ -885,6 +933,7 @@ struct UniversalDType {
         scalar_type.tp_new = scalar_new;
         scalar_type.tp_repr = scalar_repr;
         scalar_type.tp_richcompare = scalar_richcompare;
+        scalar_type.tp_hash = scalar_hash;
         scalar_type.tp_methods = scalar_methods;
         as_number.nb_float = scalar_float;
         scalar_type.tp_as_number = &as_number;
