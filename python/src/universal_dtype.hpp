@@ -625,6 +625,31 @@ struct UniversalDType {
         }
         return 0;
     }
+    // clip is a dedicated 3-in ufunc in NumPy 2.x (not composed from
+    // minimum/maximum), so it needs its own loop: clip(a, lo, hi) bounds a into
+    // [lo, hi] at full precision. NaN in a propagates; a NaN bound is ignored.
+    static int clip_loop(PyArrayMethod_Context*, char* const data[], npy_intp const dims[],
+                         npy_intp const strides[], NpyAuxData*) {
+        npy_intp N = dims[0];
+        char *ia = data[0], *ilo = data[1], *ihi = data[2], *o = data[3];
+        while (N--) {
+            storage_t A, LO, HI;
+            std::memcpy(&A, ia, ELSIZE);
+            std::memcpy(&LO, ilo, ELSIZE);
+            std::memcpy(&HI, ihi, ELSIZE);
+            cpp_t r = Traits::from_bits(A);
+            if (!Traits::is_nan(r)) {
+                cpp_t lo = Traits::from_bits(LO), hi = Traits::from_bits(HI);
+                if (!Traits::is_nan(lo) && Traits::lt(r, lo)) r = lo;
+                if (!Traits::is_nan(hi) && Traits::lt(hi, r)) r = hi;
+            }
+            storage_t rb = Traits::to_bits(r);
+            std::memcpy(o, &rb, ELSIZE);
+            ia += strides[0]; ilo += strides[1]; ihi += strides[2]; o += strides[3];
+        }
+        return 0;
+    }
+
     static bool pred_isnan(const cpp_t& v) { return Traits::is_nan(v); }
     static bool pred_isinf(const cpp_t& v) { return Traits::is_inf(v); }
     static bool pred_isfinite(const cpp_t& v) { return !Traits::is_nan(v) && !Traits::is_inf(v); }
@@ -635,6 +660,30 @@ struct UniversalDType {
     static cpp_t op_div(cpp_t a, cpp_t b) { return a / b; }
     static cpp_t op_neg(cpp_t a) { return -a; }
     static cpp_t op_abs(cpp_t a) { return Traits::to_double(a) < 0.0 ? cpp_t(-a) : a; }
+    // minimum/maximum compare at full precision (via the trait's lt) and, like
+    // NumPy's, PROPAGATE NaN/NaR: if either operand is NaN the result is NaN.
+    static cpp_t op_max(cpp_t a, cpp_t b) {
+        if (Traits::is_nan(a)) return a;
+        if (Traits::is_nan(b)) return b;
+        return Traits::lt(a, b) ? b : a;
+    }
+    static cpp_t op_min(cpp_t a, cpp_t b) {
+        if (Traits::is_nan(a)) return a;
+        if (Traits::is_nan(b)) return b;
+        return Traits::lt(a, b) ? a : b;
+    }
+    // fmax/fmin instead SUPPRESS NaN: a NaN operand is ignored (matches NumPy,
+    // and gives np.nanmax/np.nanmin their behaviour).
+    static cpp_t op_fmax(cpp_t a, cpp_t b) {
+        if (Traits::is_nan(a)) return b;
+        if (Traits::is_nan(b)) return a;
+        return Traits::lt(a, b) ? b : a;
+    }
+    static cpp_t op_fmin(cpp_t a, cpp_t b) {
+        if (Traits::is_nan(a)) return b;
+        if (Traits::is_nan(b)) return a;
+        return Traits::lt(a, b) ? a : b;
+    }
     // All six comparisons derive from the trait's lt/eq. NaN/NaR are unordered:
     // lt and eq both return false, so <,<=,>,>=,== are false and != is true.
     static bool cmp_eq(const cpp_t& a, const cpp_t& b) { return Traits::eq(a, b); }
@@ -662,6 +711,27 @@ struct UniversalDType {
         }
         return 0;
     }
+
+    // Binary math ufuncs (power): compute in double, round back into the type —
+    // same higher-precision-then-round rationale as the unary math loop.
+    template <double (*Fn)(double, double)>
+    static int math2_loop(PyArrayMethod_Context*, char* const data[], npy_intp const dims[],
+                          npy_intp const strides[], NpyAuxData*) {
+        npy_intp N = dims[0];
+        char *i0 = data[0], *i1 = data[1], *o = data[2];
+        while (N--) {
+            storage_t a, b;
+            std::memcpy(&a, i0, ELSIZE);
+            std::memcpy(&b, i1, ELSIZE);
+            double r = Fn(Traits::to_double(Traits::from_bits(a)),
+                          Traits::to_double(Traits::from_bits(b)));
+            storage_t rb = Traits::to_bits(Traits::from_double(r));
+            std::memcpy(o, &rb, ELSIZE);
+            i0 += strides[0]; i1 += strides[1]; o += strides[2];
+        }
+        return 0;
+    }
+    static double m2_pow(double a, double b) { return std::pow(a, b); }
 
 #define UDT_MATH1(nm, expr) static double nm(double x) { return (expr); }
     UDT_MATH1(m_sqrt, std::sqrt(x))
@@ -696,6 +766,16 @@ struct UniversalDType {
         if (!np) return nullptr;
         PyObject* uf = PyObject_GetAttrString(np, name);
         Py_DECREF(np);
+        if (uf && PyObject_TypeCheck(uf, &PyUFunc_Type)) return uf;
+        // A few ufuncs (e.g. clip) are shadowed at the top level by a Python
+        // dispatcher; the ufunc object itself lives in numpy._core.umath.
+        Py_XDECREF(uf);
+        PyErr_Clear();
+        PyObject* um = PyImport_ImportModule("numpy._core.umath");
+        if (!um) { PyErr_Clear(); um = PyImport_ImportModule("numpy.core.umath"); }
+        if (!um) return nullptr;
+        uf = PyObject_GetAttrString(um, name);
+        Py_DECREF(um);
         return uf;
     }
 
@@ -703,7 +783,9 @@ struct UniversalDType {
                          PyArrayMethod_StridedLoop* loop) {
         PyObject* ufunc = get_ufunc(ufunc_name);
         if (!ufunc) return -1;
-        void* resolve = (nin + nout == 2) ? (void*)&ufunc_resolve<2> : (void*)&ufunc_resolve<3>;
+        void* resolve = (nin + nout == 2)   ? (void*)&ufunc_resolve<2>
+                        : (nin + nout == 4) ? (void*)&ufunc_resolve<4>
+                                            : (void*)&ufunc_resolve<3>;
         PyType_Slot slots[] = {
             {NPY_METH_resolve_descriptors, resolve},
             {NPY_METH_strided_loop, (void*)loop},
@@ -729,6 +811,17 @@ struct UniversalDType {
         if (add_ufunc("subtract", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_sub>)) return -1;
         if (add_ufunc("multiply", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_mul>)) return -1;
         if (add_ufunc("true_divide", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_div>)) return -1;
+        // power computes in double then rounds back (like the unary math ufuncs).
+        if (add_ufunc("power", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&math2_loop<m2_pow>)) return -1;
+        // minimum/maximum propagate NaN; fmin/fmax suppress it (drives np.min/max,
+        // np.clip, np.nanmin/nanmax). All compare at full precision via lt.
+        if (add_ufunc("minimum", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_min>)) return -1;
+        if (add_ufunc("maximum", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_max>)) return -1;
+        if (add_ufunc("fmin", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_fmin>)) return -1;
+        if (add_ufunc("fmax", ttt, 2, 1, (PyArrayMethod_StridedLoop*)&binary_loop<op_fmax>)) return -1;
+        // clip is its own 3-in ufunc in NumPy 2.x (a, lo, hi) -> out.
+        PyArray_DTypeMeta* tttt[4] = {&DType, &DType, &DType, &DType};
+        if (add_ufunc("clip", tttt, 3, 1, (PyArrayMethod_StridedLoop*)&clip_loop)) return -1;
         if (add_ufunc("negative", tt, 1, 1, (PyArrayMethod_StridedLoop*)&unary_loop<op_neg>)) return -1;
         if (add_ufunc("absolute", tt, 1, 1, (PyArrayMethod_StridedLoop*)&unary_loop<op_abs>)) return -1;
         if (add_ufunc("isnan", to, 1, 1, (PyArrayMethod_StridedLoop*)&predicate_loop<pred_isnan>))
