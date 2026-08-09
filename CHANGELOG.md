@@ -12,6 +12,17 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ## [Unreleased]
 
+### Features
+
+- **Cross-dtype casts.** `astype` now works between any two universal dtypes
+  (`posit16 → posit32`, `dd_cascade → bfloat16`, …), not just to/from builtin
+  NumPy types. Conversion is value-domain via a compensated multi-term expansion
+  built from each type's own arithmetic, so it preserves the source's full
+  precision even past `float64`'s 53 bits (`posit64` and the `dd`/`td`/`qd`
+  cascades); e.g. `posit64 → qd_cascade → posit64` is bit-exact. One shared
+  loop + a runtime registry serve every pair (no per-pair template bloat).
+  Closes #39.
+
 ### Documentation
 
 - **`docs/RELEASING.md`: major-release procedure.** Documents that the first

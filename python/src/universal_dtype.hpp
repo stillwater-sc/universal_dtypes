@@ -48,6 +48,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include <numpy/arrayobject.h>
 #include <numpy/dtype_api.h>
@@ -72,6 +73,98 @@ template <typename T>
 struct out_float_casting<T, std::void_t<decltype(T::to_float_casting)>> {
     static constexpr NPY_CASTING value = T::to_float_casting;
 };
+
+// ---- cross-dtype casts (issue #39) -----------------------------------------
+// NumPy does not chain casts between two custom dtypes, so every ordered pair
+// needs an explicit cast. Rather than an N*(N-1) matrix of templated loops, all
+// cross-casts share ONE resolver and ONE strided loop; the (src, dst) identity
+// is recovered at run time from the context descriptors via a small registry.
+//
+// The conversion is value-domain: src bits -> a K-term expansion of doubles ->
+// dst bits. Each term is the residual of the previous, computed in the SOURCE
+// type's own arithmetic (`v - from_double(to_double(v))`), so up to K*53 bits
+// survive. `double` alone is insufficient for the wide configs (posit64, lns32,
+// and the dd/td/qd cascades, all of which carry more than double's 53 bits); the
+// expansion is exactly the compensated-sum / floating-point-expansion fallback
+// the design mandates, built from each type's own operators. K = 4 covers even
+// the widest registered type (qd_cascade, ~212 bits).
+constexpr int UD_WIDE_TERMS = 4;
+
+using UDToWide = void (*)(const char* in, double* w);     // src bits -> expansion
+using UDFromWide = void (*)(char* out, const double* w);  // expansion -> dst bits
+
+struct UDCrossEntry {
+    PyArray_DTypeMeta* meta;
+    UDToWide to_wide;
+    UDFromWide from_wide;
+};
+
+// One registry shared across translation units (inline function's local static).
+// Each dtype appends itself during registration; the loop looks entries up by
+// their DTypeMeta.
+inline std::vector<UDCrossEntry>& ud_cross_registry() {
+    static std::vector<UDCrossEntry> reg;
+    return reg;
+}
+inline const UDCrossEntry* ud_cross_find(PyArray_DTypeMeta* m) {
+    for (const auto& e : ud_cross_registry())
+        if (e.meta == m) return &e;
+    return nullptr;
+}
+
+// Shared resolver: echo the given descriptors (or fall back to each side's
+// default) and report the safety. Every cross-cast is UNSAFE — value-domain
+// rounding is possible between different number systems.
+inline NPY_CASTING ud_cross_resolve(PyObject*, PyArray_DTypeMeta* const dtypes[2],
+                                    PyArray_Descr* const given[2], PyArray_Descr* loop[2],
+                                    npy_intp*) {
+    for (int i = 0; i < 2; i++) {
+        if (given[i] != nullptr) { Py_INCREF(given[i]); loop[i] = given[i]; }
+        else { loop[i] = PyArray_GetDefaultDescr(dtypes[i]); if (!loop[i]) return (NPY_CASTING)-1; }
+    }
+    return NPY_UNSAFE_CASTING;
+}
+
+// Shared strided loop for every cross-cast; the pair identity comes from the
+// context descriptors, so one loop serves all N*(N-1) pairs.
+inline int ud_cross_loop(PyArrayMethod_Context* ctx, char* const data[],
+                         npy_intp const dims[], npy_intp const strides[], NpyAuxData*) {
+    const UDCrossEntry* se = ud_cross_find(NPY_DTYPE(ctx->descriptors[0]));
+    const UDCrossEntry* de = ud_cross_find(NPY_DTYPE(ctx->descriptors[1]));
+    if (!se || !de) {
+        PyErr_SetString(PyExc_RuntimeError, "universal_dtypes: unregistered cross-cast");
+        return -1;
+    }
+    npy_intp N = dims[0];
+    char* in = data[0];
+    char* out = data[1];
+    double w[UD_WIDE_TERMS];
+    while (N--) {
+        se->to_wide(in, w);
+        de->from_wide(out, w);
+        in += strides[0];
+        out += strides[1];
+    }
+    return 0;
+}
+
+// Build one cross-cast spec. Per the DType API, NULL in `dtypes` means "the
+// newly created DType", i.e. the one currently registering; the other side is a
+// concrete, already-registered DTypeMeta.
+inline PyArrayMethod_Spec* ud_make_cross_cast(PyArray_DTypeMeta* src, PyArray_DTypeMeta* dst) {
+    auto** dts = (PyArray_DTypeMeta**)malloc(2 * sizeof(PyArray_DTypeMeta*));
+    dts[0] = src; dts[1] = dst;
+    auto* slots = (PyType_Slot*)malloc(4 * sizeof(PyType_Slot));
+    slots[0] = {NPY_METH_resolve_descriptors, (void*)&ud_cross_resolve};
+    slots[1] = {NPY_METH_strided_loop, (void*)&ud_cross_loop};
+    slots[2] = {NPY_METH_unaligned_strided_loop, (void*)&ud_cross_loop};
+    slots[3] = {0, nullptr};
+    auto* spec = (PyArrayMethod_Spec*)malloc(sizeof(PyArrayMethod_Spec));
+    spec->name = "ud_cross_cast"; spec->nin = 1; spec->nout = 1;
+    spec->casting = NPY_UNSAFE_CASTING; spec->flags = NPY_METH_SUPPORTS_UNALIGNED;
+    spec->dtypes = dts; spec->slots = slots;
+    return spec;
+}
 
 // All per-type state (scalar type, DTypeMeta, cast specs) lives in static
 // members of this class template, so each Traits gets its own independent set.
@@ -336,6 +429,44 @@ struct UniversalDType {
         return 0;
     }
 
+    // ---- cross-dtype cast hooks (issue #39) ---------------------------------
+    // Decompose one element into a K-term double expansion. Each term is the
+    // residual of the previous, taken in cpp_t's own arithmetic, so the type's
+    // full precision survives even when it exceeds double's 53 bits. NaN/inf are
+    // carried in a single term (their residual is not meaningful).
+    static void to_wide(const char* in, double* w) {
+        storage_t bits;
+        std::memcpy(&bits, in, ELSIZE);
+        cpp_t v = Traits::from_bits(bits);
+        double d0 = Traits::to_double(v);
+        if (!std::isfinite(d0)) {
+            w[0] = d0;
+            for (int k = 1; k < UD_WIDE_TERMS; k++) w[k] = 0.0;
+            return;
+        }
+        for (int k = 0; k < UD_WIDE_TERMS; k++) {
+            double d = Traits::to_double(v);
+            w[k] = d;
+            v = v - Traits::from_double(d);  // residual in the type's own arithmetic
+        }
+    }
+
+    // Reconstruct an element from a K-term expansion by summing the terms in
+    // cpp_t's arithmetic, smallest first (a compensated sum), then rounding into
+    // the type. A NaN/inf head term is rounded straight in.
+    static void from_wide(char* out, const double* w) {
+        cpp_t acc;
+        if (!std::isfinite(w[0])) {
+            acc = Traits::from_double(w[0]);
+        } else {
+            acc = Traits::from_double(0.0);
+            for (int k = UD_WIDE_TERMS - 1; k >= 0; k--)
+                acc = acc + Traits::from_double(w[k]);
+        }
+        storage_t rb = Traits::to_bits(acc);
+        std::memcpy(out, &rb, ELSIZE);
+    }
+
     static NPY_CASTING builtin_resolve(PyObject*, PyArray_DTypeMeta* const dtypes[2],
                                        PyArray_Descr* const given[2], PyArray_Descr* loop[2],
                                        npy_intp*) {
@@ -355,7 +486,7 @@ struct UniversalDType {
         {0, nullptr},
     };
     inline static PyArrayMethod_Spec self_cast{};
-    inline static PyArrayMethod_Spec* casts[16];
+    inline static std::vector<PyArrayMethod_Spec*> casts;
 
     static PyArrayMethod_Spec* make_cast(const char* name, PyArray_DTypeMeta* src,
                                          PyArray_DTypeMeta* dst, PyArrayMethod_StridedLoop* loop,
@@ -379,27 +510,37 @@ struct UniversalDType {
         self_cast.casting = NPY_NO_CASTING; self_cast.flags = NPY_METH_SUPPORTS_UNALIGNED;
         self_cast.dtypes = self_dtypes; self_cast.slots = self_slots;
 
-        int n = 0;
-        casts[n++] = &self_cast;
+        casts.clear();
+        casts.push_back(&self_cast);
         constexpr NPY_CASTING out_float = out_float_casting<Traits>::value;
-        casts[n++] = make_cast("to_float", &DType, &PyArray_FloatDType,
-                               (PyArrayMethod_StridedLoop*)&cast_to_builtin<float>, out_float);
-        casts[n++] = make_cast("to_double", &DType, &PyArray_DoubleDType,
-                               (PyArrayMethod_StridedLoop*)&cast_to_builtin<double>, out_float);
-        casts[n++] = make_cast("to_longlong", &DType, &PyArray_LongLongDType,
-                               (PyArrayMethod_StridedLoop*)&cast_to_builtin<long long>, NPY_UNSAFE_CASTING);
-        casts[n++] = make_cast("from_float", &PyArray_FloatDType, &DType,
-                               (PyArrayMethod_StridedLoop*)&cast_from_builtin<float>, NPY_UNSAFE_CASTING);
-        casts[n++] = make_cast("from_double", &PyArray_DoubleDType, &DType,
-                               (PyArrayMethod_StridedLoop*)&cast_from_builtin<double>, NPY_UNSAFE_CASTING);
-        casts[n++] = make_cast("from_longlong", &PyArray_LongLongDType, &DType,
-                               (PyArrayMethod_StridedLoop*)&cast_from_builtin<long long>, NPY_UNSAFE_CASTING);
-        casts[n++] = make_cast("from_long", &PyArray_LongDType, &DType,
-                               (PyArrayMethod_StridedLoop*)&cast_from_builtin<long>, NPY_UNSAFE_CASTING);
-        casts[n++] = make_cast("from_bool", &PyArray_BoolDType, &DType,
-                               (PyArrayMethod_StridedLoop*)&cast_from_builtin<npy_bool>, NPY_UNSAFE_CASTING);
-        casts[n] = nullptr;
-        return casts;
+        casts.push_back(make_cast("to_float", &DType, &PyArray_FloatDType,
+                                  (PyArrayMethod_StridedLoop*)&cast_to_builtin<float>, out_float));
+        casts.push_back(make_cast("to_double", &DType, &PyArray_DoubleDType,
+                                  (PyArrayMethod_StridedLoop*)&cast_to_builtin<double>, out_float));
+        casts.push_back(make_cast("to_longlong", &DType, &PyArray_LongLongDType,
+                                  (PyArrayMethod_StridedLoop*)&cast_to_builtin<long long>, NPY_UNSAFE_CASTING));
+        casts.push_back(make_cast("from_float", &PyArray_FloatDType, &DType,
+                                  (PyArrayMethod_StridedLoop*)&cast_from_builtin<float>, NPY_UNSAFE_CASTING));
+        casts.push_back(make_cast("from_double", &PyArray_DoubleDType, &DType,
+                                  (PyArrayMethod_StridedLoop*)&cast_from_builtin<double>, NPY_UNSAFE_CASTING));
+        casts.push_back(make_cast("from_longlong", &PyArray_LongLongDType, &DType,
+                                  (PyArrayMethod_StridedLoop*)&cast_from_builtin<long long>, NPY_UNSAFE_CASTING));
+        casts.push_back(make_cast("from_long", &PyArray_LongDType, &DType,
+                                  (PyArrayMethod_StridedLoop*)&cast_from_builtin<long>, NPY_UNSAFE_CASTING));
+        casts.push_back(make_cast("from_bool", &PyArray_BoolDType, &DType,
+                                  (PyArrayMethod_StridedLoop*)&cast_from_builtin<npy_bool>, NPY_UNSAFE_CASTING));
+
+        // Cross-dtype casts to/from every universal dtype registered before this
+        // one (all fully initialized). This dtype's own side is NULL ("the newly
+        // created DType"). Placing each pair in the later-registered dtype's spec
+        // means every ordered pair is registered exactly once, with no circular
+        // dependency on a not-yet-initialized DTypeMeta.
+        for (const auto& e : ud_cross_registry()) {
+            casts.push_back(ud_make_cross_cast(nullptr, e.meta));  // this -> e
+            casts.push_back(ud_make_cross_cast(e.meta, nullptr));  // e -> this
+        }
+        casts.push_back(nullptr);
+        return casts.data();
     }
 
     // ---- ufunc loops --------------------------------------------------------
@@ -704,6 +845,10 @@ struct UniversalDType {
         // np.dtype(<scalar>) resolves via spec.typeobj; make np.dtype("<name>")
         // resolve too by registering the scalar type in numpy's sctypeDict.
         register_string_name();
+
+        // Publish this dtype so (a) later dtypes wire cross-casts to/from it and
+        // (b) the shared cross-cast loop can resolve it at run time.
+        ud_cross_registry().push_back({&DType, &to_wide, &from_wide});
 
         m.attr(Traits::name) = nb::borrow(reinterpret_cast<PyObject*>(&scalar_type));
         m.attr(Traits::dtype_attr) = nb::borrow(reinterpret_cast<PyObject*>(&DType));
