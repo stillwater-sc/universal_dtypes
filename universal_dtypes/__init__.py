@@ -10,6 +10,9 @@ Provides NumPy 2.x custom dtypes backed by Universal's C++ number types:
   bare ``posit{nbits}`` is ``es=2``.
 - ``fp16`` (IEEE half) and ``fp8e5m2`` — configurable floats (``cfloat``),
   bit-compatible with ``numpy.float16`` and ``ml_dtypes.float8_e5m2``.
+- ``lns16`` / ``lns32`` — logarithmic number system (``lns<16,8>`` / ``lns<32,16>``):
+  multiply/divide are exact in the exponent; add/subtract use Universal's
+  Gaussian-log routines.
 
 Each dtype supports array creation, casts, element-wise arithmetic and math
 ufuncs, comparisons, reductions, sort, and pickling. Use them like any dtype::
@@ -39,6 +42,8 @@ from universal_dtypes._core import (  # noqa: E402
     Bfloat16DType,
     Fp8e5m2DType,
     Fp16DType,
+    Lns16DType,
+    Lns32DType,
     Posit8DType,
     Posit8e0DType,
     Posit8e1DType,
@@ -56,6 +61,8 @@ from universal_dtypes._core import (  # noqa: E402
     build_info,
     fp8e5m2,
     fp16,
+    lns16,
+    lns32,
     posit8,
     posit8e0,
     posit8e1,
@@ -97,7 +104,12 @@ cfloat_dtypes = {
     "fp8e5m2": fp8e5m2,
 }
 
-dtypes = {"bfloat16": bfloat16, **cfloat_dtypes, **posit_dtypes}
+lns_dtypes = {
+    "lns16": lns16,
+    "lns32": lns32,
+}
+
+dtypes = {"bfloat16": bfloat16, **cfloat_dtypes, **posit_dtypes, **lns_dtypes}
 
 __all__ = [
     "__version__",
@@ -106,6 +118,7 @@ __all__ = [
     "build_info",
     "dtypes",
     "cfloat_dtypes",
+    "lns_dtypes",
     "posit_dtypes",
     "posit16_roundtrip",
     # cfloat scalar types + dtype classes
@@ -113,6 +126,11 @@ __all__ = [
     "fp8e5m2",
     "Fp16DType",
     "Fp8e5m2DType",
+    # lns scalar types + dtype classes
+    "lns16",
+    "lns32",
+    "Lns16DType",
+    "Lns32DType",
     # posit scalar types
     "posit8",
     "posit16",
