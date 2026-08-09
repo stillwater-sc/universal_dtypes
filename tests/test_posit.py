@@ -90,3 +90,42 @@ def test_tapered_precision():
     # more accurately than a large value. (Sanity check on tapered precision.)
     near = np.array([1.0 + 1.0 / 512], dtype=ud.posit16).astype(np.float64)[0]
     assert abs(near - (1.0 + 1.0 / 512)) < 1e-3
+
+
+@pytest.mark.parametrize("name,scalar,itemsize", POSITS)
+def test_argsort(name, scalar, itemsize):
+    a = np.array([3.0, 1.0, 2.0, 0.5], dtype=scalar)
+    np.testing.assert_array_equal(np.argsort(a), [3, 1, 2, 0])
+
+
+@pytest.mark.parametrize("name,scalar,itemsize", POSITS)
+def test_pickle_roundtrip(name, scalar, itemsize):
+    import pickle
+
+    a = np.array([1.0, 2.0, 3.0, 0.5], dtype=scalar)
+    b = pickle.loads(pickle.dumps(a))
+    assert b.dtype == np.dtype(scalar)
+    np.testing.assert_array_equal(b.astype(np.float64), a.astype(np.float64))
+    # scalar pickle
+    s = scalar(2.5)
+    assert float(pickle.loads(pickle.dumps(s))) == 2.5
+
+
+@pytest.mark.parametrize("name,scalar,itemsize", POSITS)
+def test_math_ufuncs_exact(name, scalar, itemsize):
+    # perfect squares are exactly representable in posit<n,2> for n >= 8
+    a = np.array([1.0, 4.0, 0.25], dtype=scalar)
+    np.testing.assert_array_equal(np.sqrt(a).astype(np.float64), [1.0, 2.0, 0.5])
+    np.testing.assert_array_equal(
+        np.square(np.array([2.0, 3.0], dtype=scalar)).astype(np.float64), [4.0, 9.0]
+    )
+
+
+def test_math_ufuncs_approx():
+    # transcendental funcs: posit32 has enough precision to be close to the true value
+    p32 = ud.posit32
+    x = np.array([1.0, 2.0], dtype=p32)
+    np.testing.assert_allclose(np.exp(x).astype(np.float64), np.exp([1.0, 2.0]), rtol=1e-5)
+    np.testing.assert_allclose(
+        np.log(np.array([1.0, np.e], dtype=p32)).astype(np.float64), [0.0, 1.0], atol=1e-5
+    )

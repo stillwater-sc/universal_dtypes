@@ -133,6 +133,18 @@ struct UniversalDType {
         Py_RETURN_FALSE;
     }
 
+    // Pickle: a scalar reconstructs from its double value. This roundtrips
+    // exactly — the stored value is representable, double holds it losslessly,
+    // and constructing back rounds to the same value.
+    static PyObject* scalar_reduce(PyObject* self, PyObject*) {
+        return Py_BuildValue("(O(d))", (PyObject*)&scalar_type, scalar_value(self));
+    }
+
+    inline static PyMethodDef scalar_methods[2] = {
+        {"__reduce__", (PyCFunction)scalar_reduce, METH_NOARGS, "pickle support"},
+        {nullptr, nullptr, 0, nullptr},
+    };
+
     // ---- descriptor helpers -------------------------------------------------
     static PyArray_Descr* new_descr() {
         PyArray_Descr* d = (PyArray_Descr*)PyArrayDescr_Type.tp_new(
@@ -158,6 +170,25 @@ struct UniversalDType {
         if (DType.singleton != nullptr) return (PyObject*)canonical();
         return (PyObject*)new_descr();
     }
+
+    // Pickle for the dtype itself (needed to pickle arrays / np.save): reconstruct
+    // via np.dtype(<scalar type>). Reconstructing by scalar type rather than by
+    // string name is unambiguous even when another package registers the same
+    // name (e.g. ml_dtypes also owns "bfloat16"); the scalar type pickles by
+    // reference as universal_dtypes.<name>.
+    static PyObject* descr_reduce(PyObject*, PyObject*) {
+        PyObject* np = PyImport_ImportModule("numpy");
+        if (!np) return nullptr;
+        PyObject* dtype_callable = PyObject_GetAttrString(np, "dtype");
+        Py_DECREF(np);
+        if (!dtype_callable) return nullptr;
+        return Py_BuildValue("(N(O))", dtype_callable, (PyObject*)&scalar_type);
+    }
+
+    inline static PyMethodDef descr_methods[2] = {
+        {"__reduce__", (PyCFunction)descr_reduce, METH_NOARGS, "pickle support"},
+        {nullptr, nullptr, 0, nullptr},
+    };
 
     // ---- DType slots --------------------------------------------------------
     static PyArray_Descr* slot_default_descr(PyArray_DTypeMeta*) {
@@ -441,6 +472,53 @@ struct UniversalDType {
     static bool cmp_gt(double a, double b) { return a > b; }
     static bool cmp_ge(double a, double b) { return a >= b; }
 
+    // Unary math ufuncs (exp/log/trig/sqrt/...): compute in double, round back
+    // into the type. Higher-precision-then-round is the correct semantics for a
+    // low-precision type and keeps one implementation across every Traits.
+    template <double (*Fn)(double)>
+    static int math_loop(PyArrayMethod_Context*, char* const data[], npy_intp const dims[],
+                         npy_intp const strides[], NpyAuxData*) {
+        npy_intp N = dims[0];
+        char *i0 = data[0], *o = data[1];
+        while (N--) {
+            storage_t a;
+            std::memcpy(&a, i0, ELSIZE);
+            double r = Fn(Traits::to_double(Traits::from_bits(a)));
+            storage_t rb = Traits::to_bits(Traits::from_double(r));
+            std::memcpy(o, &rb, ELSIZE);
+            i0 += strides[0]; o += strides[1];
+        }
+        return 0;
+    }
+
+#define UDT_MATH1(nm, expr) static double nm(double x) { return (expr); }
+    UDT_MATH1(m_sqrt, std::sqrt(x))
+    UDT_MATH1(m_cbrt, std::cbrt(x))
+    UDT_MATH1(m_square, x* x)
+    UDT_MATH1(m_recip, 1.0 / x)
+    UDT_MATH1(m_exp, std::exp(x))
+    UDT_MATH1(m_exp2, std::exp2(x))
+    UDT_MATH1(m_expm1, std::expm1(x))
+    UDT_MATH1(m_log, std::log(x))
+    UDT_MATH1(m_log2, std::log2(x))
+    UDT_MATH1(m_log10, std::log10(x))
+    UDT_MATH1(m_log1p, std::log1p(x))
+    UDT_MATH1(m_sin, std::sin(x))
+    UDT_MATH1(m_cos, std::cos(x))
+    UDT_MATH1(m_tan, std::tan(x))
+    UDT_MATH1(m_asin, std::asin(x))
+    UDT_MATH1(m_acos, std::acos(x))
+    UDT_MATH1(m_atan, std::atan(x))
+    UDT_MATH1(m_sinh, std::sinh(x))
+    UDT_MATH1(m_cosh, std::cosh(x))
+    UDT_MATH1(m_tanh, std::tanh(x))
+    UDT_MATH1(m_floor, std::floor(x))
+    UDT_MATH1(m_ceil, std::ceil(x))
+    UDT_MATH1(m_trunc, std::trunc(x))
+    UDT_MATH1(m_rint, std::rint(x))
+    UDT_MATH1(m_sign, std::isnan(x) ? x : static_cast<double>((x > 0.0) - (x < 0.0)))
+#undef UDT_MATH1
+
     static PyObject* get_ufunc(const char* name) {
         PyObject* np = PyImport_ImportModule("numpy");
         if (!np) return nullptr;
@@ -488,6 +566,40 @@ struct UniversalDType {
         if (add_ufunc("less_equal", tto, 2, 1, (PyArrayMethod_StridedLoop*)&cmp_loop<cmp_le>)) return -1;
         if (add_ufunc("greater", tto, 2, 1, (PyArrayMethod_StridedLoop*)&cmp_loop<cmp_gt>)) return -1;
         if (add_ufunc("greater_equal", tto, 2, 1, (PyArrayMethod_StridedLoop*)&cmp_loop<cmp_ge>)) return -1;
+
+        // unary math ufuncs (in -> out, both this type)
+        struct M { const char* name; PyArrayMethod_StridedLoop* loop; };
+        const M maths[] = {
+            {"sqrt", (PyArrayMethod_StridedLoop*)&math_loop<m_sqrt>},
+            {"cbrt", (PyArrayMethod_StridedLoop*)&math_loop<m_cbrt>},
+            {"square", (PyArrayMethod_StridedLoop*)&math_loop<m_square>},
+            {"reciprocal", (PyArrayMethod_StridedLoop*)&math_loop<m_recip>},
+            {"exp", (PyArrayMethod_StridedLoop*)&math_loop<m_exp>},
+            {"exp2", (PyArrayMethod_StridedLoop*)&math_loop<m_exp2>},
+            {"expm1", (PyArrayMethod_StridedLoop*)&math_loop<m_expm1>},
+            {"log", (PyArrayMethod_StridedLoop*)&math_loop<m_log>},
+            {"log2", (PyArrayMethod_StridedLoop*)&math_loop<m_log2>},
+            {"log10", (PyArrayMethod_StridedLoop*)&math_loop<m_log10>},
+            {"log1p", (PyArrayMethod_StridedLoop*)&math_loop<m_log1p>},
+            {"sin", (PyArrayMethod_StridedLoop*)&math_loop<m_sin>},
+            {"cos", (PyArrayMethod_StridedLoop*)&math_loop<m_cos>},
+            {"tan", (PyArrayMethod_StridedLoop*)&math_loop<m_tan>},
+            {"arcsin", (PyArrayMethod_StridedLoop*)&math_loop<m_asin>},
+            {"arccos", (PyArrayMethod_StridedLoop*)&math_loop<m_acos>},
+            {"arctan", (PyArrayMethod_StridedLoop*)&math_loop<m_atan>},
+            {"sinh", (PyArrayMethod_StridedLoop*)&math_loop<m_sinh>},
+            {"cosh", (PyArrayMethod_StridedLoop*)&math_loop<m_cosh>},
+            {"tanh", (PyArrayMethod_StridedLoop*)&math_loop<m_tanh>},
+            {"floor", (PyArrayMethod_StridedLoop*)&math_loop<m_floor>},
+            {"ceil", (PyArrayMethod_StridedLoop*)&math_loop<m_ceil>},
+            {"trunc", (PyArrayMethod_StridedLoop*)&math_loop<m_trunc>},
+            {"rint", (PyArrayMethod_StridedLoop*)&math_loop<m_rint>},
+            {"sign", (PyArrayMethod_StridedLoop*)&math_loop<m_sign>},
+        };
+        PyArray_DTypeMeta* tt2[2] = {&DType, &DType};
+        for (const M& mm : maths) {
+            if (add_ufunc(mm.name, tt2, 1, 1, mm.loop)) return -1;
+        }
         return 0;
     }
 
@@ -502,6 +614,7 @@ struct UniversalDType {
         scalar_type.tp_new = scalar_new;
         scalar_type.tp_repr = scalar_repr;
         scalar_type.tp_richcompare = scalar_richcompare;
+        scalar_type.tp_methods = scalar_methods;
         as_number.nb_float = scalar_float;
         scalar_type.tp_as_number = &as_number;
         if (PyType_Ready(&scalar_type) < 0)
@@ -521,6 +634,7 @@ struct UniversalDType {
         dt->tp_repr = descr_repr;
         dt->tp_str = descr_str;
         dt->tp_new = descr_new;
+        dt->tp_methods = descr_methods;
         if (PyType_Ready(dt) < 0)
             throw std::runtime_error(std::string(Traits::name) + " DType not ready");
 
@@ -567,7 +681,12 @@ struct UniversalDType {
         PyObject* d = PyObject_GetAttrString(np, "sctypeDict");
         Py_DECREF(np);
         if (!d) { PyErr_Clear(); return; }
-        PyDict_SetItemString(d, Traits::name, (PyObject*)&scalar_type);
+        // Don't clobber a name another package already owns (e.g. ml_dtypes also
+        // registers "bfloat16"). Pickling doesn't depend on this — it goes
+        // through the scalar type — so leaving an existing owner in place is safe.
+        if (PyDict_GetItemString(d, Traits::name) == nullptr) {
+            PyDict_SetItemString(d, Traits::name, (PyObject*)&scalar_type);
+        }
         Py_DECREF(d);
     }
 };
