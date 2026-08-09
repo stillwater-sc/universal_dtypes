@@ -12,14 +12,13 @@ conventional semver — `feat` bumps the **minor** component, `fix`/`perf`/
 
 ## [Unreleased]
 
-### Added
+### Documentation
 
-- **DSP study: `applications/dsp/iir_limit_cycles.py` (issue #34).** Drives a
-  resonant biquad with an impulse then zeros and watches the tail: fixed-point
-  `q15` gets trapped in a dead-band **limit cycle** (~2e-4, never reaches zero),
-  the classic recursive-filter hazard; `q31` shrinks it ~10⁵× but doesn't
-  eliminate it; and float-exponent formats (`bfloat16`, `float64`) ring down
-  cleanly — so it's a fixed-point-grid effect, not a bit-width one.
+- **`docs/RELEASING.md`: major-release procedure.** Documents that the first
+  stable major must be `2.0.0` — the accidental early `1.0.0` was yanked and PyPI
+  never frees a version number, so `1.0.0` is unusable forever — plus the manual
+  steps to cut `2.0.0` and how automation resumes afterward. Also corrects the
+  stale version-policy note to conventional semver (`feat` → minor).
 
 <!-- version list -->
 
