@@ -16,6 +16,21 @@ skips the yanked `1.0.0` (see [`docs/RELEASING.md`](docs/RELEASING.md) §3).
 
 <!-- version list -->
 
+## v2.1.0 (2026-08-10)
+
+### Documentation
+
+- Refresh README for v2.0.0; correct inaccurate API claims
+  ([#58](https://github.com/stillwater-sc/universal_dtypes/pull/58),
+  [`dc7762f`](https://github.com/stillwater-sc/universal_dtypes/commit/dc7762f7e281f581ee7a3b1702d67b0157b1db96))
+
+### Features
+
+- **dtype**: Python int/float/bool scalars promote in ufuncs
+  ([#59](https://github.com/stillwater-sc/universal_dtypes/pull/59),
+  [`1ecc887`](https://github.com/stillwater-sc/universal_dtypes/commit/1ecc887214a3e4de4dc9b18cdf5c2db218ba4576))
+
+
 ## v2.0.0 (2026-08-09)
 
 **First stable release.** The public API is now committed to Semantic Versioning
