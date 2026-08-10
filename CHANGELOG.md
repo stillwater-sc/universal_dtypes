@@ -16,6 +16,15 @@ skips the yanked `1.0.0` (see [`docs/RELEASING.md`](docs/RELEASING.md) §3).
 
 <!-- version list -->
 
+## v2.2.0 (2026-08-10)
+
+### Features
+
+- **dtype**: Np.arange support via the fill ArrFuncs slot
+  ([#61](https://github.com/stillwater-sc/universal_dtypes/pull/61),
+  [`368d090`](https://github.com/stillwater-sc/universal_dtypes/commit/368d090aac5ec94ddeb2fe1a7ec62bd1d7ac413e))
+
+
 ## v2.1.0 (2026-08-10)
 
 ### Documentation
