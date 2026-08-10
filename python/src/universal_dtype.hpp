@@ -326,6 +326,16 @@ struct UniversalDType {
     }
 
     static PyArray_DTypeMeta* slot_common_dtype(PyArray_DTypeMeta* cls, PyArray_DTypeMeta* other) {
+        // The abstract DTypes standing in for weak Python scalars (NEP 50) are
+        // not "numeric" by type_num — they have none — so they need naming
+        // explicitly. Without this, np.result_type(a, 2) and anything built on
+        // it (np.where, np.choose, ...) raise DTypePromotionError even though
+        // the ufunc promoters resolve `a * 2` fine. Python complex is left out
+        // deliberately: absorbing it would silently drop the imaginary part.
+        if (other == &PyArray_PyLongDType || other == &PyArray_PyFloatDType) {
+            Py_INCREF(cls);
+            return cls;
+        }
         // Promote against simple builtin numeric types (not complex/longdouble):
         // our type wins (values round into it). Everything else is NotImplemented.
         if (other->type_num >= 0 && PyTypeNum_ISNUMBER(other->type_num) &&
@@ -562,6 +572,12 @@ struct UniversalDType {
                                   (PyArrayMethod_StridedLoop*)&cast_to_builtin<double>, out_float));
         casts.push_back(make_cast("to_longlong", &DType, &PyArray_LongLongDType,
                                   (PyArrayMethod_StridedLoop*)&cast_to_builtin<long long>, NPY_UNSAFE_CASTING));
+        // Inbound float/int stay UNSAFE: rounding a whole float64 array into a
+        // low-precision type is a data-loss decision the caller should make
+        // explicitly with .astype(). Weak Python scalars do NOT need this
+        // relaxed — common_dtype names their abstract DTypes, so NumPy builds
+        // the scalar directly in this dtype instead of casting an int64/float64
+        // temporary (#55).
         casts.push_back(make_cast("from_float", &PyArray_FloatDType, &DType,
                                   (PyArrayMethod_StridedLoop*)&cast_from_builtin<float>, NPY_UNSAFE_CASTING));
         casts.push_back(make_cast("from_double", &PyArray_DoubleDType, &DType,
@@ -570,9 +586,16 @@ struct UniversalDType {
                                   (PyArrayMethod_StridedLoop*)&cast_from_builtin<long long>, NPY_UNSAFE_CASTING));
         casts.push_back(make_cast("from_long", &PyArray_LongDType, &DType,
                                   (PyArrayMethod_StridedLoop*)&cast_from_builtin<long>, NPY_UNSAFE_CASTING));
+        // bool is the exception, and the only cast level this change touches.
+        // Python `True` is not a weak scalar — NumPy maps it straight to the
+        // concrete BoolDType — so `a * True` really does cast bool -> this type,
+        // and a ufunc checks its inputs at same_kind. NumPy grades bool -> any
+        // numeric as `safe`; SAME_KIND is the honest grade here only because the
+        // ±1 fractional formats saturate 1.0 to maxpos.
         casts.push_back(make_cast("from_bool", &PyArray_BoolDType, &DType,
-                                  (PyArrayMethod_StridedLoop*)&cast_from_builtin<npy_bool>, NPY_UNSAFE_CASTING));
-        // float16 (both directions UNSAFE — half's 11-bit significand is lossy).
+                                  (PyArrayMethod_StridedLoop*)&cast_from_builtin<npy_bool>,
+                                  NPY_SAME_KIND_CASTING));
+        // float16 both directions UNSAFE — half's 11-bit significand is lossy.
         casts.push_back(make_cast("to_half", &DType, &PyArray_HalfDType,
                                   (PyArrayMethod_StridedLoop*)&cast_to_half, NPY_UNSAFE_CASTING));
         casts.push_back(make_cast("from_half", &PyArray_HalfDType, &DType,
@@ -841,6 +864,96 @@ struct UniversalDType {
         return 1;
     }
 
+    // ---- promoters: let Python int/float operands adopt this dtype ----------
+    // NumPy 2 dispatches a ufunc on the *exact* DType signature of its operands.
+    // A Python scalar arrives as one of the abstract weak DTypes (PyLongDType /
+    // PyFloatDType, per NEP 50), which matches no registered loop — so `a * 2`
+    // raises UFuncTypeError even though promote_types(this, float64) already
+    // says this type wins. A promoter rewrites such a mixed signature to the
+    // all-this-type one, so dispatch lands on the ordinary (T, T) -> T loop and
+    // the scalar is converted through setitem (bits_from_pyobject). See #55.
+    //
+    // Only Python-scalar operands are absorbed (the two weak DTypes, plus
+    // concrete bool — see add_scalar_promoters). A concrete numeric builtin
+    // (np.float64(2), a float64 array) is deliberately left to raise: silently
+    // rounding a whole float64 array into a low-precision type is a data-loss
+    // decision the caller should make explicitly with .astype().
+    template <int NIN, bool BOOL_OUT>
+    static int promote_to_self(PyObject*, PyArray_DTypeMeta* const[],
+                               PyArray_DTypeMeta* const signature[],
+                               PyArray_DTypeMeta* new_op_dtypes[]) {
+        for (int i = 0; i < NIN; i++) {
+            Py_INCREF(&DType);
+            new_op_dtypes[i] = &DType;
+        }
+        // Respect an explicit output dtype from signature=/dtype=; otherwise the
+        // natural one (bool for comparisons, this type for arithmetic).
+        PyArray_DTypeMeta* out = signature[NIN] ? signature[NIN]
+                                 : BOOL_OUT     ? &PyArray_BoolDType
+                                                : &DType;
+        Py_INCREF(out);
+        new_op_dtypes[NIN] = out;
+        return 0;
+    }
+
+    static int add_promoter(const char* ufunc_name, PyArray_DTypeMeta* const dts[], int nargs,
+                            PyArrayMethod_PromoterFunction* fn) {
+        PyObject* ufunc = get_ufunc(ufunc_name);
+        if (!ufunc) return -1;
+        PyObject* tup = PyTuple_New(nargs);
+        if (!tup) { Py_DECREF(ufunc); return -1; }
+        for (int i = 0; i < nargs; i++) {
+            Py_INCREF((PyObject*)dts[i]);
+            PyTuple_SET_ITEM(tup, i, (PyObject*)dts[i]);
+        }
+        PyObject* cap = PyCapsule_New((void*)fn, "numpy._ufunc_promoter", nullptr);
+        if (!cap) { Py_DECREF(tup); Py_DECREF(ufunc); return -1; }
+        int r = PyUFunc_AddPromoter(ufunc, tup, cap);
+        Py_DECREF(cap);
+        Py_DECREF(tup);
+        Py_DECREF(ufunc);
+        return r;
+    }
+
+    // Register a promoter for every mixed signature of `ufunc_name` in which at
+    // least one operand is this dtype and the others are absorbable scalars.
+    // Requiring at least one operand of this dtype matters: a promoter is
+    // registered globally on the ufunc, so an all-scalar signature would hijack
+    // plain `2 * 3` for every user of NumPy.
+    //
+    // Absorbable = the two weak Python scalar DTypes, plus concrete bool.
+    // Python `True` is not weak — NumPy maps it straight to BoolDType — but
+    // bool -> numeric carries no information loss (it is `safe` in NumPy's own
+    // table), so absorbing it does not hide a lossy conversion the way a
+    // float64 operand would.
+    static int add_scalar_promoters(const char* ufunc_name, int nin, bool bool_out) {
+        PyArray_DTypeMeta* absorbable[3] = {&PyArray_PyLongDType, &PyArray_PyFloatDType,
+                                            &PyArray_BoolDType};
+        PyArrayMethod_PromoterFunction* fn =
+            (nin == 3)  ? (PyArrayMethod_PromoterFunction*)&promote_to_self<3, false>
+            : bool_out  ? (PyArrayMethod_PromoterFunction*)&promote_to_self<2, true>
+                        : (PyArrayMethod_PromoterFunction*)&promote_to_self<2, false>;
+        constexpr int NKIND = 4;  // this dtype + the 3 absorbable ones
+        int ncombo = 1;
+        for (int i = 0; i < nin; i++) ncombo *= NKIND;
+        for (int c = 0; c < ncombo; c++) {
+            PyArray_DTypeMeta* dts[4];
+            int code = c, nself = 0;
+            for (int i = 0; i < nin; i++) {
+                int k = code % NKIND;
+                code /= NKIND;
+                if (k == 0) { dts[i] = &DType; nself++; }
+                else { dts[i] = absorbable[k - 1]; }
+            }
+            // nself == nin is the real loop; nself == 0 would steal other dtypes'
+            // dispatch. Only the genuinely mixed signatures get a promoter.
+            if (nself == 0 || nself == nin) continue;
+            dts[nin] = bool_out ? &PyArray_BoolDType : &DType;
+            if (add_promoter(ufunc_name, dts, nin + 1, fn) < 0) return -1;
+        }
+        return 0;
+    }
+
     static int add_ufunc(const char* ufunc_name, PyArray_DTypeMeta** dtypes, int nin, int nout,
                          PyArrayMethod_StridedLoop* loop,
                          PyArrayMethod_GetReductionInitial* initial = nullptr) {
@@ -938,6 +1051,21 @@ struct UniversalDType {
         for (const M& mm : maths) {
             if (add_ufunc(mm.name, tt2, 1, 1, mm.loop)) return -1;
         }
+
+        // Promoters for the mixed (this dtype, Python scalar) signatures — see
+        // add_scalar_promoters. Unary ufuncs need none (no second operand).
+        static const char* const binary_arith[] = {"add",     "subtract", "multiply",
+                                                   "true_divide", "power", "minimum",
+                                                   "maximum", "fmin",     "fmax"};
+        for (const char* name : binary_arith) {
+            if (add_scalar_promoters(name, 2, false)) return -1;
+        }
+        static const char* const comparisons[] = {"equal", "not_equal",    "less",
+                                                  "less_equal", "greater", "greater_equal"};
+        for (const char* name : comparisons) {
+            if (add_scalar_promoters(name, 2, true)) return -1;
+        }
+        if (add_scalar_promoters("clip", 3, false)) return -1;
         return 0;
     }
 

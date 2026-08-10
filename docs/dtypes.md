@@ -18,19 +18,37 @@ np.dtype("posit16")  # string-name resolution
 
 ## Interoperating with builtin Python and NumPy types
 
-Two gaps are worth knowing before anything else, because they are the first
-things most users hit.
-
-**Python scalars do not promote.** There is no ufunc loop pairing a universal
-dtype with Python's `int`/`float` (or with a builtin NumPy scalar dtype), so
-mixed expressions raise `UFuncTypeError`. Wrap the scalar in the dtype, or use a
-0-d array:
+**Python scalars work directly.** `int`, `float`, and `bool` operands are
+absorbed into the array's dtype, on either side of the operator, for arithmetic,
+comparisons, and `clip`:
 
 ```python
-a * ud.posit16(2)  # ok
-a * np.array(2.0, dtype=ud.posit16)  # ok
-a > ud.posit16(1)  # ok — comparisons need it too
-a * 2  # UFuncTypeError: no loop for (posit16, int)
+a * 2
+a + 1.5
+2 - a  # either side
+a > 1  # comparisons too
+np.clip(a, 0, 1)
+np.where(a > 1, a, 0)  # np.result_type(a, 2) resolves as well
+```
+
+The scalar is **converted into the type first**, then the operation runs — so it
+rounds or saturates by that type's own rules, identically to writing the
+conversion out. That matters most for the bounded formats: `2` is not
+representable in `q15` (range ±1), so it saturates to maxpos and `q15_arr * 2`
+multiplies by ~0.99997 rather than doubling. It does not raise, and it matches
+`np.array(2.0, dtype=ud.q15)` exactly.
+
+```python
+a * 2 == a * ud.posit16(2)  # same result, always
+```
+
+**A concrete NumPy operand still raises**, by design — rounding a whole `float64`
+array into a low-precision type is a data-loss decision that should be explicit:
+
+```python
+a * np.float64(2)  # UFuncTypeError
+a * np.array([2.0])  # UFuncTypeError — use a.astype(np.float64) or an .astype() cast
+a * 2j  # UFuncTypeError — absorbing complex would drop the imaginary part
 ```
 
 **`np.arange` does not accept these dtypes** (`TypeError`). Build the range in a
@@ -41,10 +59,9 @@ np.linspace(0, 1, 8).astype(ud.posit16)  # instead of np.arange(..., dtype=ud.po
 np.zeros(4, dtype=ud.posit16)  # zeros/ones/full/empty do work
 ```
 
-Both are tracked as issues
-[#55](https://github.com/stillwater-sc/universal_dtypes/issues/55) and
-[#56](https://github.com/stillwater-sc/universal_dtypes/issues/56); neither is a
-frozen part of the v2 API — adding the loops is backward-compatible.
+`arange` is tracked as
+[#56](https://github.com/stillwater-sc/universal_dtypes/issues/56); scalar
+promotion was [#55](https://github.com/stillwater-sc/universal_dtypes/issues/55).
 
 ## Casting between dtypes
 
