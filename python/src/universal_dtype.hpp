@@ -44,6 +44,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
@@ -54,6 +55,7 @@
 #include <numpy/dtype_api.h>
 #include <numpy/halffloat.h>
 #include <numpy/ndarraytypes.h>
+#include <numpy/npy_math.h>
 #include <numpy/ufuncobject.h>
 
 #include <nanobind/nanobind.h>
@@ -196,6 +198,45 @@ struct UniversalDType {
     }
 
     // Convert an arbitrary Python object to raw bits. Returns 0 on success.
+    // ---- saturation reporting (issue #60) -----------------------------------
+    // Converting a value the type cannot represent clamps it to maxpos/maxneg
+    // (fixpnt and its DSP configs, posit). That is the type's documented
+    // overflow rule, but doing it silently hides real bugs: `q15_arr * 2`
+    // scales by ~0.99997 instead of doubling, because the scalar 2 saturates to
+    // maxpos on the way in — and the result looks plausible.
+    //
+    // The two conversion paths are disjoint and need different mechanisms:
+    //
+    //   * Array -> array (cast_from_builtin, i.e. astype and array operands)
+    //     reports through NumPy's floating-point error state, exactly as NumPy
+    //     does for its own float16 overflow. That gives the standard control
+    //     surface for free — np.errstate(over="warn"|"ignore"|"raise"), default
+    //     warn — and aggregates to one report per cast rather than per element.
+    //
+    //   * Scalar -> element (bits_from_pyobject, i.e. the weak-scalar operand of
+    //     `arr * 2`, np.array(x, dtype=T), np.full, the scalar constructor) must
+    //     use PyErr_WarnEx. The float status does NOT survive here: NumPy clears
+    //     it before running a ufunc loop, and the scalar operand is converted
+    //     during operand preparation, i.e. *before* that clear — so a status set
+    //     here is wiped and never reported. A real warning is the only signal
+    //     that survives. It is still a RuntimeWarning, so the default user-
+    //     visible behavior matches; only np.errstate does not reach it.
+    //
+    // Types that carry an infinity (cfloat, bfloat16) overflow to inf rather
+    // than saturating, so they are unaffected: their bound below is inf and the
+    // check never fires. Same for any type whose out-of-range conversion yields
+    // NaN — the comparison is false.
+    static double saturation_bound() {
+        // maxpos as a double; computed once per dtype.
+        static const double bound = std::fabs(Traits::to_double(Traits::from_double(1e300)));
+        return bound;
+    }
+
+    static bool saturates(double d) {
+        const double bound = saturation_bound();
+        return std::isfinite(d) && std::isfinite(bound) && std::fabs(d) > bound;
+    }
+
     static int bits_from_pyobject(PyObject* obj, storage_t* out) {
         if (is_scalar(obj)) {
             *out = reinterpret_cast<Scalar*>(obj)->bits;
@@ -203,6 +244,17 @@ struct UniversalDType {
         }
         double d = PyFloat_AsDouble(obj);  // handles float, int, __float__
         if (d == -1.0 && PyErr_Occurred()) return -1;
+        if (saturates(d)) {
+            // %.17g on the bound, not %g: q31's maxpos prints as "1" at lower
+            // precision, which reads as though 1.0 were representable when 1.0
+            // is exactly what saturates.
+            char msg[192];
+            std::snprintf(msg, sizeof(msg),
+                          "value %g out of range for %s (max %.17g); saturated", d,
+                          Traits::name, saturation_bound());
+            // Honors the warnings filters, including -W error (returns -1).
+            if (PyErr_WarnEx(PyExc_RuntimeWarning, msg, 1) < 0) return -1;
+        }
         *out = Traits::to_bits(Traits::from_double(d));
         return 0;
     }
@@ -471,14 +523,18 @@ struct UniversalDType {
         npy_intp N = dims[0];
         char* in = data[0];
         char* out = data[1];
+        bool overflowed = false;  // reported once for the whole cast, not per element
         while (N--) {
             B v;
             std::memcpy(&v, in, sizeof(B));
-            storage_t bits = Traits::to_bits(Traits::from_double(static_cast<double>(v)));
+            const double d = static_cast<double>(v);
+            if (saturates(d)) overflowed = true;
+            storage_t bits = Traits::to_bits(Traits::from_double(d));
             std::memcpy(out, &bits, ELSIZE);
             in += strides[0];
             out += strides[1];
         }
+        if (overflowed) npy_set_floatstatus_overflow();
         return 0;
     }
 

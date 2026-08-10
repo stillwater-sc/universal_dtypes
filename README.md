@@ -125,9 +125,16 @@ np.clip(a, 0, 1)
 The scalar is converted into the array's dtype first, so it rounds or saturates
 by that type's rules — `a * 2` is always exactly `a * ud.posit16(2)`. On a
 bounded format that has teeth: `2` saturates to maxpos in `q15` (range ±1), so
-`q15_arr * 2` scales by ~0.99997 instead of doubling. A **concrete** NumPy
-operand still raises, deliberately — rounding a whole `float64` array into a
-low-precision type should be an explicit `.astype()`:
+`q15_arr * 2` scales by ~0.99997 instead of doubling. Any conversion that
+saturates reports it, so that doesn't happen silently:
+
+```python
+np.array([0.5], dtype=ud.q15) * 2
+# RuntimeWarning: value 2 out of range for q15 (max 0.999969482421875); saturated
+```
+
+A **concrete** NumPy operand still raises, deliberately — rounding a whole
+`float64` array into a low-precision type should be an explicit `.astype()`:
 
 ```python
 a * np.float64(2)  # UFuncTypeError
