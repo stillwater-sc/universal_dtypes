@@ -7,7 +7,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "universal_dtypes"
-version = "0.23.0"
+version = "2.0.0"
 description = "NumPy dtypes for the Stillwater Universal number systems (posit, cfloat, fixpnt, lns)"
 readme = "README.md"
 license = { text = "MIT" }
@@ -40,9 +40,13 @@ select = ["E", "F", "W", "I"]
 # ---------------------------------------------------------------------------
 # python-semantic-release
 #
-# universal_dtypes is a pre-1.0 package (major_on_zero = false) and follows
-# conventional semver: feat → MINOR, fix/perf/refactor → PATCH. On 0.x this means
-# a new feature bumps 0.x.y → 0.(x+1).0 and a fix bumps the patch. (An earlier
+# universal_dtypes follows conventional semver: feat → MINOR, fix/perf/refactor →
+# PATCH, and a feat!/BREAKING CHANGE footer → MAJOR. The package is now on the
+# stable 2.x line (the first stable major was cut manually as v2.0.0 — see
+# docs/RELEASING.md §3; it skipped the yanked 1.0.0).
+#
+# major_on_zero / allow_zero_version below are 0.x-only knobs and are now inert on
+# 2.x; they are retained as a record of the pre-1.0 policy. (An even earlier
 # config mapped feat → patch to "reserve" the minor for the Universal version;
 # that flattened features and fixes into indistinguishable patch bumps — e.g. the
 # whole posit family shipped as 0.1.4 instead of 0.2.0 — so it was dropped.)
@@ -51,12 +55,8 @@ select = ["E", "F", "W", "I"]
 version_toml = ["pyproject.toml:project.version"]
 tag_format = "v{version}"
 commit_message = "chore(release): v{version}"
-major_on_zero = false
-# MUST stay true. With allow_zero_version=false, semantic-release "escapes" 0.x
-# by force-bumping to 1.0.0 on the first run — even for non-release commits —
-# which is what accidentally published 1.0.0. Keeping it true holds the package
-# on 0.x until a deliberate major bump.
-allow_zero_version = true
+major_on_zero = false  # inert on 2.x (only affects 0.x)
+allow_zero_version = true  # inert on 2.x (only affects the 0.x → 1.0 escape)
 branch = "main"
 
 [tool.semantic_release.commit_parser_options]
