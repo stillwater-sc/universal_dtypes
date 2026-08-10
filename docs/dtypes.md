@@ -2,7 +2,7 @@
 
 `universal_dtypes` registers NumPy 2.x custom dtypes backed by Universal's C++
 number types. Every dtype supports array creation, casts (to/from
-`float16`/`float32`/`float64`/int/bool **and between any two universal dtypes**),
+`float16`/`float32`/`float64` **and between any two universal dtypes**),
 element-wise arithmetic (including `**`, `minimum`/`maximum`, `clip`), unary math
 ufuncs, comparisons, reductions (`sum`, `prod`, `min`, `max`), sort/argsort,
 hashable scalars, and pickling.
@@ -11,10 +11,40 @@ hashable scalars, and pickling.
 import numpy as np, universal_dtypes as ud
 
 a = np.array([1.0, 2.0, 3.0], dtype=ud.posit16)
-np.sum(a * 2)  # arithmetic + reductions
+np.sum(a * ud.posit16(2))  # arithmetic + reductions
 a.astype(np.float32)  # casts
 np.dtype("posit16")  # string-name resolution
 ```
+
+## Interoperating with builtin Python and NumPy types
+
+Two gaps are worth knowing before anything else, because they are the first
+things most users hit.
+
+**Python scalars do not promote.** There is no ufunc loop pairing a universal
+dtype with Python's `int`/`float` (or with a builtin NumPy scalar dtype), so
+mixed expressions raise `UFuncTypeError`. Wrap the scalar in the dtype, or use a
+0-d array:
+
+```python
+a * ud.posit16(2)  # ok
+a * np.array(2.0, dtype=ud.posit16)  # ok
+a > ud.posit16(1)  # ok — comparisons need it too
+a * 2  # UFuncTypeError: no loop for (posit16, int)
+```
+
+**`np.arange` does not accept these dtypes** (`TypeError`). Build the range in a
+builtin float type and cast:
+
+```python
+np.linspace(0, 1, 8).astype(ud.posit16)  # instead of np.arange(..., dtype=ud.posit16)
+np.zeros(4, dtype=ud.posit16)  # zeros/ones/full/empty do work
+```
+
+Both are tracked as issues
+[#55](https://github.com/stillwater-sc/universal_dtypes/issues/55) and
+[#56](https://github.com/stillwater-sc/universal_dtypes/issues/56); neither is a
+frozen part of the v2 API — adding the loops is backward-compatible.
 
 ## Casting between dtypes
 
@@ -31,6 +61,15 @@ a.astype(ud.dd_cascade)  # into a high-precision cascade
 Casts convert in the **value domain** (the represented real number), not by
 reinterpreting bits. All such casts are classified **unsafe** (a different number
 system may round), so `astype` performs them but implicit promotion does not.
+
+Of the **builtin** NumPy types, only `float16`/`float32`/`float64` cast in both
+directions. There is no outbound integer or boolean cast, and the inbound ones
+are incomplete, so route integer and boolean data through `float64`:
+
+```python
+a.astype(np.float64).astype(np.int32)  # posit16 -> int
+np.array([1, 2], dtype=np.int32).astype(np.float64).astype(ud.posit16)  # int -> posit16
+```
 
 The conversion goes through a compensated multi-term expansion built from each
 type's own arithmetic, so it preserves the **source's full precision** — even when
@@ -62,7 +101,7 @@ addends are lost against a large running sum:
 ```python
 a = np.array([100.0] + [0.01] * 50, dtype=ud.posit16)
 np.sum(a)  # 100.0  — the 0.01s vanish in posit16
-np.sum(a.astype(np.float64))  # 100.5  — accumulate wider by casting first
+np.sum(a.astype(np.float64))  # ~100.5 — accumulate wider by casting first
 ```
 
 **Wider accumulation and `mean`: cast first.** A wider accumulation dtype is not
@@ -218,6 +257,35 @@ configs are chosen for exact parity with a reference:
 
 Both are IEEE-style: they have `±inf`, `NaN`, and subnormals, so `np.isnan`,
 `np.isinf`, and `np.isfinite` all work.
+
+**Scope of the parity: every finite encoding, but not the `±inf` bit patterns.**
+Rounding matches the reference exactly across the range (that is what
+`test_fp16_matches_numpy_float16` and `test_fp8e5m2_matches_ml_dtypes` pin).
+Sweeping the *entire* encoding space, exactly **4 of 65536** patterns differ for
+`fp16` and **4 of 256** for `fp8e5m2`; all 63488 (resp. 248) finite patterns are
+identical, as is `maxpos` (65504 / 57344). The divergence is that Universal's
+`cfloat` places `±inf` at a different pattern than IEEE does:
+
+| pattern | `fp16` decodes as | `numpy.float16` decodes as |
+|---------|-------------------|-----------------------------|
+| `0x7c00` | `NaN` | `+inf` |
+| `0x7ffe` | `+inf` | `NaN` |
+| `0xfc00` | `NaN` | `-inf` |
+| `0xfffe` | `-inf` | `NaN` |
+
+`fp8e5m2` diverges the same way at `0x7c`/`0x7e`/`0xfc`/`0xfe`. Every *other*
+all-ones-exponent pattern is `NaN` under both, so the NaN payload space itself
+substantially agrees — only the two `±inf` encodings per sign swap roles.
+
+Converting between the types (`astype`) is correct in both directions — `inf`
+stays `inf`, `NaN` stays `NaN`. What you cannot do is **reinterpret a raw
+buffer** across the two (`np.frombuffer(x.tobytes(), ...)`) when it may contain
+`±inf`: those four patterns will change meaning. For finite data the
+reinterpretation is exact. This is tracked as
+[#57](https://github.com/stillwater-sc/universal_dtypes/issues/57).
+
+`bfloat16` has no such caveat: all 65536 patterns are identical to
+`ml_dtypes.bfloat16`, including `±inf` and `NaN`.
 
 **`bfloat16`** is itself a `cfloat<16,8,…>` config, but it keeps its own dedicated
 standalone implementation (for `ml_dtypes.bfloat16` parity) rather than going
