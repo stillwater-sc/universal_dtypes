@@ -134,16 +134,17 @@ a * np.float64(2)  # UFuncTypeError
 a * np.array([2.0])  # UFuncTypeError
 ```
 
-`np.arange` does not accept these dtypes either; build in `float64` and cast
-(`zeros`/`ones`/`full`/`empty` do work):
+Array creation works through the usual entry points:
 
 ```python
-np.linspace(0, 1, 8).astype(ud.posit16)
+np.arange(8, dtype=ud.posit16)
+np.zeros(4, dtype=ud.posit16)  # zeros / ones / full / empty
+np.linspace(0, 1, 8).astype(ud.posit16)  # linspace has no dtype= for these
 ```
 
-That gap is tracked as
-[#56](https://github.com/stillwater-sc/universal_dtypes/issues/56); closing it is
-backward-compatible, so it is not frozen by the v2 API.
+`arange` computes `start + i*delta` per element and rounds once (NumPy's own
+rule for floats) rather than accumulating, and it saturates on the bounded
+formats — see [`docs/dtypes.md`](docs/dtypes.md#interoperating-with-builtin-python-and-numpy-types).
 
 Worked, runnable problems — one per number-system family, plus cross-family
 application studies in math, ML, control, and DSP — live in

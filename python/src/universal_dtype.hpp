@@ -380,7 +380,36 @@ struct UniversalDType {
         return Traits::is_zero(Traits::from_bits(bits)) ? NPY_FALSE : NPY_TRUE;
     }
 
-    inline static PyType_Slot dtype_slots[10] = {
+    // Arithmetic-progression fill — this is what np.arange needs (#56); without
+    // it NumPy raises "arange() not supported for inputs with DType". NumPy
+    // pre-writes the first two elements and asks us for the rest.
+    //
+    // Each element is computed as start + i*delta from the *absolute* index and
+    // rounded once, exactly as NumPy's own float fill does — not accumulated as
+    // v[i-1] + delta, which would compound a rounding error at every step and
+    // drift badly in a low-precision type.
+    //
+    // The progression is computed in double, then rounded into the type: for the
+    // dd/td/qd cascades that caps arange at double precision (the same rule the
+    // math ufuncs already document). Doing it in the type's own arithmetic would
+    // be worse overall — it would have to round the index i itself into the type,
+    // and in posit8 an index of 100 is not even representable.
+    static int slot_fill(void* data_, npy_intp length, void*) {
+        if (length < 2) return 0;
+        char* data = static_cast<char*>(data_);
+        storage_t b0, b1;
+        std::memcpy(&b0, data, ELSIZE);
+        std::memcpy(&b1, data + ELSIZE, ELSIZE);
+        const double start = Traits::to_double(Traits::from_bits(b0));
+        const double delta = Traits::to_double(Traits::from_bits(b1)) - start;
+        for (npy_intp i = 2; i < length; i++) {
+            storage_t b = Traits::to_bits(Traits::from_double(start + static_cast<double>(i) * delta));
+            std::memcpy(data + i * ELSIZE, &b, ELSIZE);
+        }
+        return 0;
+    }
+
+    inline static PyType_Slot dtype_slots[11] = {
         {NPY_DT_default_descr, (void*)&slot_default_descr},
         {NPY_DT_common_dtype, (void*)&slot_common_dtype},
         {NPY_DT_common_instance, (void*)&slot_common_instance},
@@ -390,6 +419,7 @@ struct UniversalDType {
         {NPY_DT_getitem, (void*)&slot_getitem},
         {NPY_DT_PyArray_ArrFuncs_compare, (void*)&slot_compare},
         {NPY_DT_PyArray_ArrFuncs_nonzero, (void*)&slot_nonzero},
+        {NPY_DT_PyArray_ArrFuncs_fill, (void*)&slot_fill},
         {0, nullptr},
     };
 

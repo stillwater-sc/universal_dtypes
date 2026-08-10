@@ -51,17 +51,31 @@ a * np.array([2.0])  # UFuncTypeError — use a.astype(np.float64) or an .astype
 a * 2j  # UFuncTypeError — absorbing complex would drop the imaginary part
 ```
 
-**`np.arange` does not accept these dtypes** (`TypeError`). Build the range in a
-builtin float type and cast:
+**Array creation works through the usual entry points**, `np.arange` included:
 
 ```python
-np.linspace(0, 1, 8).astype(ud.posit16)  # instead of np.arange(..., dtype=ud.posit16)
-np.zeros(4, dtype=ud.posit16)  # zeros/ones/full/empty do work
+np.arange(8, dtype=ud.posit16)
+np.arange(0, 1, 0.25, dtype="posit16")
+np.zeros(4, dtype=ud.posit16)  # zeros / ones / full / empty
+np.linspace(0, 1, 8).astype(ud.posit16)  # linspace has no dtype= for these
 ```
 
-`arange` is tracked as
-[#56](https://github.com/stillwater-sc/universal_dtypes/issues/56); scalar
-promotion was [#55](https://github.com/stillwater-sc/universal_dtypes/issues/55).
+`arange` computes each element as `start + i*delta` from the absolute index and
+rounds once, rather than accumulating `v[i-1] + delta` — the same rule NumPy
+uses for its own floats, and it avoids compounding a rounding error at every
+step. `delta` is taken from the first two (already rounded) elements, so for a
+step that is not exactly representable, `np.arange(0, 1, 0.1, dtype=ud.posit16)`
+differs slightly from `np.arange(0, 1, 0.1).astype(ud.posit16)`. NumPy's own
+`float16` differs from its `float64` counterpart in exactly the same way.
+
+Two consequences worth knowing: on the bounded formats the progression
+**saturates** rather than raising (`np.arange(3, dtype=ud.q15)` is
+`[0, maxpos, maxpos]`, since `q15` holds only ±1), and for the `dd`/`td`/`qd`
+cascades the progression is computed in `double`, so it carries double precision
+rather than the type's full significand.
+
+(Scalar promotion was [#55](https://github.com/stillwater-sc/universal_dtypes/issues/55),
+`arange` [#56](https://github.com/stillwater-sc/universal_dtypes/issues/56).)
 
 ## Casting between dtypes
 
