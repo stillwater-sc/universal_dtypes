@@ -93,11 +93,11 @@ import numpy as np
 import universal_dtypes as ud
 
 a = np.array([1.0, 2.0, 3.0], dtype=ud.posit16)
-b = a * a  # element-wise arithmetic, in posit16
+b = a * 2  # element-wise arithmetic, in posit16
 c = np.sum(a)  # reductions (in-type accumulation — see below)
 n = np.sqrt(a)  # math ufuncs
 s = np.sort(a)  # sort / argsort
-m = a > ud.posit16(1)  # comparisons
+m = a > 1  # comparisons
 ```
 
 Every dtype supports array creation, casts, element-wise arithmetic and math
@@ -112,26 +112,38 @@ np.zeros(4, dtype="posit16")
 np.full(4, 2.5, dtype="fp8e5m2")
 ```
 
-**Mixing with Python scalars is not implicit.** There is no promotion loop for
-`int`/`float`, so `a * 2` raises; use a typed scalar or a 0-d array instead:
+Python `int`/`float`/`bool` scalars mix in directly, on either side:
 
 ```python
-a * ud.posit16(2)  # ok
-a * np.array(2.0, dtype=ud.posit16)  # ok
-a * 2  # UFuncTypeError — no loop for (posit16, int)
+a * 2
+a + 1.5
+2 - a
+a > 1
+np.clip(a, 0, 1)
 ```
 
-Likewise `np.arange` does not accept these dtypes; build in `float64` and cast
+The scalar is converted into the array's dtype first, so it rounds or saturates
+by that type's rules — `a * 2` is always exactly `a * ud.posit16(2)`. On a
+bounded format that has teeth: `2` saturates to maxpos in `q15` (range ±1), so
+`q15_arr * 2` scales by ~0.99997 instead of doubling. A **concrete** NumPy
+operand still raises, deliberately — rounding a whole `float64` array into a
+low-precision type should be an explicit `.astype()`:
+
+```python
+a * np.float64(2)  # UFuncTypeError
+a * np.array([2.0])  # UFuncTypeError
+```
+
+`np.arange` does not accept these dtypes either; build in `float64` and cast
 (`zeros`/`ones`/`full`/`empty` do work):
 
 ```python
 np.linspace(0, 1, 8).astype(ud.posit16)
 ```
 
-Both gaps are tracked —
-[#55](https://github.com/stillwater-sc/universal_dtypes/issues/55) and
-[#56](https://github.com/stillwater-sc/universal_dtypes/issues/56) — and closing
-them is backward-compatible, so neither is frozen by the v2 API.
+That gap is tracked as
+[#56](https://github.com/stillwater-sc/universal_dtypes/issues/56); closing it is
+backward-compatible, so it is not frozen by the v2 API.
 
 Worked, runnable problems — one per number-system family, plus cross-family
 application studies in math, ML, control, and DSP — live in
