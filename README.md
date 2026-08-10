@@ -93,11 +93,11 @@ import numpy as np
 import universal_dtypes as ud
 
 a = np.array([1.0, 2.0, 3.0], dtype=ud.posit16)
-b = a * a                    # element-wise arithmetic, in posit16
-c = np.sum(a)                # reductions (in-type accumulation — see below)
-n = np.sqrt(a)               # math ufuncs
-s = np.sort(a)               # sort / argsort
-m = a > ud.posit16(1)        # comparisons
+b = a * a  # element-wise arithmetic, in posit16
+c = np.sum(a)  # reductions (in-type accumulation — see below)
+n = np.sqrt(a)  # math ufuncs
+s = np.sort(a)  # sort / argsort
+m = a > ud.posit16(1)  # comparisons
 ```
 
 Every dtype supports array creation, casts, element-wise arithmetic and math
@@ -116,9 +116,9 @@ np.full(4, 2.5, dtype="fp8e5m2")
 `int`/`float`, so `a * 2` raises; use a typed scalar or a 0-d array instead:
 
 ```python
-a * ud.posit16(2)                     # ok
-a * np.array(2.0, dtype=ud.posit16)   # ok
-a * 2                                 # UFuncTypeError — no loop for (posit16, int)
+a * ud.posit16(2)  # ok
+a * np.array(2.0, dtype=ud.posit16)  # ok
+a * 2  # UFuncTypeError — no loop for (posit16, int)
 ```
 
 Likewise `np.arange` does not accept these dtypes; build in `float64` and cast
@@ -145,17 +145,17 @@ builtin NumPy types:
 
 ```python
 a = np.array([1.5, 2.25], dtype=ud.posit16)
-a.astype(ud.posit32)     # posit -> posit
-a.astype(ud.bfloat16)    # across number systems
+a.astype(ud.posit32)  # posit -> posit
+a.astype(ud.bfloat16)  # across number systems
 a.astype(ud.dd_cascade)  # into a high-precision cascade
-a.astype(np.float32)     # and float16 / float32 / float64
+a.astype(np.float32)  # and float16 / float32 / float64
 ```
 
 Of the builtin NumPy types, only `float16`/`float32`/`float64` cast in both
 directions. Integer and boolean arrays go through `float64`:
 
 ```python
-a.astype(np.float64).astype(np.int32)                          # posit16 -> int
+a.astype(np.float64).astype(np.int32)  # posit16 -> int
 np.array([1, 2], dtype=np.int32).astype(np.float64).astype(ud.posit16)
 ```
 
@@ -174,7 +174,7 @@ choice. Consequently `np.sum(a, dtype=np.float64)` and `np.mean(a)` raise; cast
 first to pick your precision.
 
 ```python
-a.astype(np.float64).sum()   # wider accumulation
+a.astype(np.float64).sum()  # wider accumulation
 a.astype(np.float64).mean()  # the supported mean
 ```
 
@@ -260,7 +260,7 @@ import numpy as np
 import universal_dtypes as ud
 
 x = np.array([100.0] + [0.01] * 50, dtype=ud.posit16)
-np.sum(x)                     # 100.0  — every 0.01 vanishes against the total
+np.sum(x)  # 100.0  — every 0.01 vanishes against the total
 np.sum(x.astype(np.float64))  # ≈100.5 — accumulate wider by casting first
 ```
 
