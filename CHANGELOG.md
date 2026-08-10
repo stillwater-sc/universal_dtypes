@@ -16,6 +16,15 @@ skips the yanked `1.0.0` (see [`docs/RELEASING.md`](docs/RELEASING.md) §3).
 
 <!-- version list -->
 
+## v2.3.0 (2026-08-10)
+
+### Features
+
+- **dtype**: Report saturating conversions instead of silently clamping
+  ([#62](https://github.com/stillwater-sc/universal_dtypes/pull/62),
+  [`f850196`](https://github.com/stillwater-sc/universal_dtypes/commit/f850196585d514623c89b263ccc6b3251eaac086))
+
+
 ## v2.2.0 (2026-08-10)
 
 ### Features
