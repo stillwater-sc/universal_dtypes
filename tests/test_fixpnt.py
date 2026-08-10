@@ -6,8 +6,16 @@ and exact addition within range.
 """
 
 import numpy as np
+import pytest
 
 import universal_dtypes as ud
+
+# Saturation is exercised deliberately here, which now reports — see #60 and
+# test_saturation_warning.py, which asserts that signal. These tests are about
+# the resulting values.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:(value .* out of range|overflow encountered in cast)"
+)
 
 FIXPNTS = [
     ("fixpnt16", ud.fixpnt16, 2, 128.0, 2.0**-8),

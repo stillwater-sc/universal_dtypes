@@ -11,6 +11,13 @@ import pytest
 
 import universal_dtypes as ud
 
+# Several cases here intentionally use values the ±1 fractional formats cannot hold
+# (e.g. the scalar 2), which now reports saturation — see #60 and
+# test_saturation_warning.py. That signal is not what these tests are about.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:(value .* out of range|overflow encountered in cast)"
+)
+
 ALL = list(ud.dtypes.items())
 
 # Values inside every format's range (the fractional DSP formats saturate ~1).

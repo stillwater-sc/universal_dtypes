@@ -33,14 +33,45 @@ np.where(a > 1, a, 0)  # np.result_type(a, 2) resolves as well
 
 The scalar is **converted into the type first**, then the operation runs — so it
 rounds or saturates by that type's own rules, identically to writing the
-conversion out. That matters most for the bounded formats: `2` is not
-representable in `q15` (range ±1), so it saturates to maxpos and `q15_arr * 2`
-multiplies by ~0.99997 rather than doubling. It does not raise, and it matches
-`np.array(2.0, dtype=ud.q15)` exactly.
+conversion out.
 
 ```python
 a * 2 == a * ud.posit16(2)  # same result, always
 ```
+
+That matters most for the bounded formats: `2` is not representable in `q15`
+(range ±1), so it saturates to maxpos and `q15_arr * 2` multiplies by ~0.99997
+rather than doubling. **A conversion that saturates reports it** — otherwise the
+result looks plausible and the mistake is invisible:
+
+```python
+np.array([0.5], dtype=ud.q15) * 2
+# RuntimeWarning: value 2 out of range for q15 (max 0.999969482421875); saturated
+```
+
+Ordinary rounding is *not* saturation and stays silent (`np.array(0.1,
+dtype=ud.q15)` rounds, but 0.1 is well in range). Types that carry an infinity
+(`cfloat`, `bfloat16`) overflow to `inf` rather than clamping, so they never
+report.
+
+Silencing it depends on which conversion path you are on, because the two use
+different channels:
+
+```python
+# array -> array (astype, array operands): NumPy's float error state
+with np.errstate(over="ignore"):  # or "raise"
+    np.array([2.0]).astype(ud.q15)
+
+# scalar -> element (a * 2, np.array(x, dtype=T), np.full): the warnings module
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    a * 2
+```
+
+The scalar path cannot use `np.errstate`: NumPy clears the float status before
+running a ufunc loop, and the scalar operand is converted before that clear, so
+the status would be wiped before anything reported it. Both default to a visible
+`RuntimeWarning`.
 
 **A concrete NumPy operand still raises**, by design — rounding a whole `float64`
 array into a low-precision type is a data-loss decision that should be explicit:
