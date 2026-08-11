@@ -28,7 +28,7 @@ dtypes. See [Relationship to MTL5](#relationship-to-mtl5).
 
 ## The dtypes
 
-28 dtypes ship, across six families. Full tables — bit layouts, ranges,
+32 dtypes ship, across seven families. Full tables — bit layouts, ranges,
 resolutions, and the exact Universal template configuration behind each — are in
 [`docs/dtypes.md`](docs/dtypes.md).
 
@@ -36,6 +36,7 @@ resolutions, and the exact Universal template configuration behind each — are 
 |--------|--------|-------|
 | **bfloat16** | `bfloat16` | brain float (1/8/7); bit-for-bit `ml_dtypes.bfloat16` |
 | **posit** | `posit8`, `posit16`, `posit32`, `posit64`; `posit8e0`, `posit8e1`, `posit16e1`; `posit12`, `posit20`, `posit24`, `posit28`, `posit40`, `posit48` | tapered precision, single **NaR**. Bare `posit{n}` is `es=2`; `posit{n}e{es}` selects the exponent size |
+| **takum** | `takum8`, `takum16`, `takum32`, `takum64` | linear takum: tapered like posit, but the dynamic range is ~fixed across widths, so extra bits buy precision, not range. Single **NaR** |
 | **cfloat** | `fp16`, `fp8e5m2` | configurable IEEE-style floats; round identically to `numpy.float16` and `ml_dtypes.float8_e5m2` |
 | **lns** | `lns16`, `lns32` | logarithmic number system (`lns<16,8>` / `lns<32,16>`) |
 | **fixpnt** | `fixpnt8`, `fixpnt16`; `q7`, `q15`, `q31`, `iq24`, `q5_23` | saturating fixed-point, incl. the standard TI / Analog Devices / ARM DSP formats |
@@ -48,7 +49,7 @@ given build ships:
 import universal_dtypes as ud
 
 list(ud.dtypes)  # every name
-ud.posit_dtypes  # just one family (also cfloat_/lns_/fixpnt_/cascade_dtypes)
+ud.posit_dtypes  # just one family (also takum_/cfloat_/lns_/fixpnt_/cascade_dtypes)
 ud.build_info()  # {'version': '2.0.0', 'universal': True, 'dtypes': True}
 ```
 

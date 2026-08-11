@@ -8,6 +8,11 @@ Provides NumPy 2.x custom dtypes backed by Universal's C++ number types:
   ``posit16e1`` and the non-power-of-two widths ``posit12``/``20``/``24``/``28``/
   ``40``/``48``). The ``posit{nbits}e{es}`` name form selects the exponent size;
   bare ``posit{nbits}`` is ``es=2``.
+- ``takum8`` / ``takum16`` / ``takum32`` / ``takum64`` — linear takum
+  (Hunhold 2024, arXiv:2404.18603): tapered precision like posit, but with a
+  dynamic range that is essentially fixed regardless of width (~5.8e76 from 16
+  bits up), so extra bits buy precision rather than range. Single ``NaR``, no
+  infinity. The logarithmic variant is a separate upstream type (``takum_log``).
 - ``fp16`` (IEEE half) and ``fp8e5m2`` — configurable floats (``cfloat``),
   bit-compatible with ``numpy.float16`` and ``ml_dtypes.float8_e5m2``.
 - ``lns16`` / ``lns32`` — logarithmic number system (``lns<16,8>`` / ``lns<32,16>``):
@@ -74,6 +79,10 @@ from universal_dtypes._core import (  # noqa: E402
     Q15DType,
     Q31DType,
     QdCascadeDType,
+    Takum8DType,
+    Takum16DType,
+    Takum32DType,
+    Takum64DType,
     TdCascadeDType,
     bfloat16,
     build_info,
@@ -104,6 +113,10 @@ from universal_dtypes._core import (  # noqa: E402
     q15,
     q31,
     qd_cascade,
+    takum8,
+    takum16,
+    takum32,
+    takum64,
     td_cascade,
 )
 
@@ -125,6 +138,15 @@ posit_dtypes = {
     "posit28": posit28,
     "posit40": posit40,
     "posit48": posit48,
+}
+
+# linear takum (issue #63). Distinct from posit in that the dynamic range is
+# essentially width-independent, so extra bits raise precision, not range.
+takum_dtypes = {
+    "takum8": takum8,
+    "takum16": takum16,
+    "takum32": takum32,
+    "takum64": takum64,
 }
 
 cfloat_dtypes = {
@@ -159,6 +181,7 @@ dtypes = {
     "bfloat16": bfloat16,
     **cfloat_dtypes,
     **posit_dtypes,
+    **takum_dtypes,
     **lns_dtypes,
     **fixpnt_dtypes,
     **cascade_dtypes,
@@ -175,6 +198,7 @@ __all__ = [
     "fixpnt_dtypes",
     "cascade_dtypes",
     "posit_dtypes",
+    "takum_dtypes",
     "posit16_roundtrip",
     # fixpnt scalar types + dtype classes
     "fixpnt16",
@@ -199,6 +223,15 @@ __all__ = [
     "TdCascadeDType",
     "qd_cascade",
     "QdCascadeDType",
+    # takum scalar types + dtype classes
+    "takum8",
+    "takum16",
+    "takum32",
+    "takum64",
+    "Takum8DType",
+    "Takum16DType",
+    "Takum32DType",
+    "Takum64DType",
     # cfloat scalar types + dtype classes
     "fp16",
     "fp8e5m2",

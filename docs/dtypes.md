@@ -235,6 +235,7 @@ what a given build ships:
 ```python
 ud.dtypes  # {"bfloat16": ..., "fp16": ..., "posit8": ..., "dd_cascade": ...}  every dtype
 ud.posit_dtypes  # just the posit family
+ud.takum_dtypes  # just the takum family
 ud.cfloat_dtypes  # just the cfloat family (fp16, fp8e5m2)
 ud.lns_dtypes  # just the lns family (lns16, lns32)
 ud.fixpnt_dtypes  # fixed-point family (fixpnt16, fixpnt8)
@@ -376,6 +377,72 @@ encodings for **zero** and **NaN** but **no infinity**, so `np.isinf` is always
 `False` and `np.isfinite` is `not isnan`. Powers of two (and their products/
 ratios) are exact; general add/sub are approximate — see the tests for the
 tolerances (`lns32` is much tighter than `lns16`).
+
+## takum
+
+The **linear takum** (Hunhold, 2024, [arXiv:2404.18603](https://arxiv.org/abs/2404.18603)),
+a tapered-precision format like posit but with a very different range/precision
+split. Universal's logarithmic variant is a separate upstream type
+(`takum_log`), so the bare `takum{nbits}` names here are permanently the linear
+encoding.
+
+Value is `(-1)^sign * (1 + f) * 2^c`, with the magnitude laid out as
+`[S:1][D:1][R:rbits][C:r bits][M:p bits]`. Storage is two's complement: zero is
+all-zero bits, **NaR** is the sign bit alone, and comparing the raw signed
+integer equals comparing the real value. Like posit there is a single NaR and
+**no infinity**, so `np.isinf` is always `False` and any non-finite float
+converts to NaR.
+
+| config | `takum<…>` | itemsize | maxpos |
+|--------|-----------|---------:|-------:|
+| `takum8`  | `takum<8,3,uint8>`   | 1 | 8.8e71 |
+| `takum16` | `takum<16,3,uint16>` | 2 | 5.6e76 |
+| `takum32` | `takum<32,3,uint32>` | 4 | 5.8e76 |
+| `takum64` | `takum<64,3,uint64>` | 8 | 5.8e76 |
+
+`rbits = 3` is the takum spec's regime width and Universal's default.
+
+**Why both takum and posit.** takum's dynamic range is essentially *independent
+of width* — flat at ~5.8e76 from 16 bits up — so wider configs buy precision
+rather than range. posit does the opposite:
+
+| width | posit maxpos | takum maxpos |
+|-------|-------------:|-------------:|
+| 8  | 1.7e7  | 8.8e71 |
+| 16 | 7.2e16 | 5.6e76 |
+| 32 | 1.3e36 | 5.8e76 |
+| 64 | 4.5e74 | 5.8e76 |
+
+So `takum8` reaches magnitudes `posit8` cannot express at all, at some cost in
+precision near ±1, while by 64 bits the two ranges converge.
+
+### takum64 arithmetic is capped at double precision
+
+Universal implements takum's `+ - * /` by converting both operands to `double`,
+computing there, and converting back. For `takum8`/`takum16`/`takum32` that is
+**exact** — their significands are far below double's 53 bits, so it is a single
+correct rounding, the same rule the [math ufuncs](#reductions-and-the-accumulation-contract)
+already follow.
+
+`takum64`'s significand reaches ~59 bits, so its operands are rounded to `double`
+*before* the operation and any detail below that is lost:
+
+```python
+a = np.array([1.0], dtype=ud.takum64)
+# a value one encoding step above 1.0 is distinct, and sorts correctly...
+# ...but adding zero to it does not round-trip.
+```
+
+What still carries the full width: the **encoding**, **casts**, **comparisons**,
+**sort**, and `min`/`max`. Only arithmetic is capped. The out-cast to `float64`
+is graded *unsafe* for `takum64` accordingly (it is safe for the narrower
+configs), and cross-dtype casts round-trip exactly for anything `double` can
+hold, but not below it — the cross-cast expansion builds its residual terms with
+the type's own arithmetic, so it inherits the same cap.
+
+`posit64` does **not** share this: Universal gives it native arithmetic, so it
+round-trips and computes at its full width. If you need more than double's
+precision from arithmetic, prefer `posit64` or the `dd`/`td`/`qd` cascades.
 
 ## posit
 

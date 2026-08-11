@@ -23,7 +23,8 @@ nanobind_add_module(_core
     src/dd.cpp
     src/td.cpp
     src/qd.cpp
-    src/fixpnt.cpp)
+    src/fixpnt.cpp
+    src/takum.cpp)
 
 # Header-only Universal number systems.
 target_link_libraries(_core PRIVATE universal)
