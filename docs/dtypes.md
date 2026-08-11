@@ -363,8 +363,8 @@ A recoding shim, so a copy across the boundary can fix up `±inf` explicitly
 rather than relying on the accident that finite data aliases cleanly, is a
 plausible future addition.
 
-**`bfloat16`** is itself a `cfloat<16,8,…>` config but keeps its own dedicated
-standalone implementation rather than going through this family — see
+**`bfloat16`** is its own dedicated standalone implementation going through
+single precision float hardware rather than going through the cfloat<> family — see
 [`design.md`](design.md).
 
 **`e4m3` is not shipped.** `cfloat<8,4>` is available in Universal if a config in
