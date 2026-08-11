@@ -133,6 +133,38 @@ All four must match the OIDC token exactly, or the upload fails with
 the **pending publisher** flow; once it exists, use the project's *Publishing*
 page.
 
+## Bumping the pinned Universal
+
+Universal supplies the arithmetic behind every dtype, and it is **pinned to a
+release tag** in the top-level `CMakeLists.txt`:
+
+```cmake
+set(UD_UNIVERSAL_TAG "v4.7.9")
+```
+
+That one variable drives both the `FetchContent` tag and the version reported by
+`universal_dtypes.build_info()["universal_version"]`, so they cannot drift.
+
+A bump is a **behavior change**, not a chore: it can alter numerics without any
+change to our own source. Treat it accordingly.
+
+1. Change `UD_UNIVERSAL_TAG` and nothing else, in its own PR — so the diff in
+   behavior is reviewable in isolation.
+2. Run the full suite. Tests that pin an upstream limitation are deliberate
+   tripwires and are *expected* to fail when upstream fixes the thing they
+   describe (e.g. `test_takum64_arithmetic_is_limited_to_double`, see
+   [#65](https://github.com/stillwater-sc/universal_dtypes/issues/65)). A red
+   tripwire means "re-grade the docs and invert the test", not "revert the bump".
+3. Use a conventional-commit type that reflects the effect: `fix` when it
+   corrects numerics, `feat` when it exposes something new, `chore` only when
+   genuinely inert. It should appear in the changelog either way — a silent
+   Universal bump is exactly what the pin exists to prevent.
+
+Note `find_package(universal QUIET)` runs first, so a pre-installed Universal
+overrides the pin at configure time. The configure log says which was used, and
+`build_info()["universal_version"]` labels a found package rather than reporting
+the tag.
+
 ## Gotchas
 
 - **Immutability.** Both registries reject re-uploading an existing version.

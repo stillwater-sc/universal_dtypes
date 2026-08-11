@@ -50,7 +50,7 @@ import universal_dtypes as ud
 
 list(ud.dtypes)  # every name
 ud.posit_dtypes  # just one family (also takum_/cfloat_/lns_/fixpnt_/cascade_dtypes)
-ud.build_info()  # {'version': '2.0.0', 'universal': True, 'dtypes': True}
+ud.build_info()  # version, dtypes, and which Universal release supplied the numerics
 ```
 
 Adding a posit configuration is a one-line table entry plus a rebuild — see

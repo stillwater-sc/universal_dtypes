@@ -60,4 +60,12 @@ else()
 endif()
 target_compile_definitions(_core PRIVATE UNIVERSAL_DTYPES_VERSION="${_UD_VERSION}")
 
+# Which Universal supplied the numerics (issue #66). Set in the top-level
+# CMakeLists next to the pin itself; a bare `cmake -S python -B ...` that never
+# ran it falls back to the sentinel.
+if(NOT DEFINED UD_UNIVERSAL_VERSION OR "${UD_UNIVERSAL_VERSION}" STREQUAL "")
+    set(UD_UNIVERSAL_VERSION "unknown")
+endif()
+target_compile_definitions(_core PRIVATE UD_UNIVERSAL_VERSION="${UD_UNIVERSAL_VERSION}")
+
 install(TARGETS _core DESTINATION universal_dtypes)
