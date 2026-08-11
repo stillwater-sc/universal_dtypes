@@ -16,6 +16,15 @@ skips the yanked `1.0.0` (see [`docs/RELEASING.md`](docs/RELEASING.md) §3).
 
 <!-- version list -->
 
+## v2.5.0 (2026-08-11)
+
+### Features
+
+- **build**: Pin Universal to v4.7.9 and report it from build_info()
+  ([#67](https://github.com/stillwater-sc/universal_dtypes/pull/67),
+  [`96cc405`](https://github.com/stillwater-sc/universal_dtypes/commit/96cc40508cc17db8db46e6776fb81a814b5a5d7d))
+
+
 ## v2.4.0 (2026-08-11)
 
 ### Features
