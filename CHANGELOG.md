@@ -16,6 +16,15 @@ skips the yanked `1.0.0` (see [`docs/RELEASING.md`](docs/RELEASING.md) §3).
 
 <!-- version list -->
 
+## v2.4.0 (2026-08-11)
+
+### Features
+
+- **dtype**: Takum8/16/32/64 — Universal's linear takum as NumPy dtypes
+  ([#64](https://github.com/stillwater-sc/universal_dtypes/pull/64),
+  [`5163650`](https://github.com/stillwater-sc/universal_dtypes/commit/5163650b6655af2224bec381a95b306eb6d06083))
+
+
 ## v2.3.0 (2026-08-10)
 
 ### Features
