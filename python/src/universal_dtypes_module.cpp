@@ -73,7 +73,13 @@ NB_MODULE(_core, m) {
             nb::dict d;
             d["version"] = std::string(UNIVERSAL_DTYPES_VERSION);
             d["universal"] = true;  // Universal headers linked and compiled in
-            d["dtypes"] = true;     // NumPy dtype registration is built (bfloat16 + posit family)
+            // Which Universal release supplied the numerics. Universal is pinned
+            // to a tag (issue #66), but a pre-installed package takes precedence
+            // at configure time, so this reports what was actually compiled
+            // against — it answers "which arithmetic does this wheel contain?"
+            // at runtime, which the bool above cannot.
+            d["universal_version"] = std::string(UD_UNIVERSAL_VERSION);
+            d["dtypes"] = true;  // NumPy dtype registration is built (bfloat16 + posit family)
             return d;
         },
         "Compile-time facts about this build.");

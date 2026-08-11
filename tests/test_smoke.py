@@ -19,6 +19,24 @@ def test_build_info():
     assert info["dtypes"] is True  # bfloat16 + posit family registered
 
 
+def test_build_info_reports_universal_version():
+    """Universal supplies the arithmetic behind every dtype, so a wheel has to be
+    able to say which Universal it contains (issue #66). The bare `universal`
+    bool above cannot answer that.
+
+    Universal is pinned to a release tag, but a pre-installed package takes
+    precedence at configure time, so this asserts the field is populated and
+    plausible rather than hard-coding the pin — which would turn every routine
+    bump into a test edit.
+    """
+    version = universal_dtypes.build_info()["universal_version"]
+    assert isinstance(version, str)
+    assert version
+    assert version != "unknown", "the build did not record which Universal it used"
+    # Either the pinned tag (vX.Y.Z) or a found package, which is labelled.
+    assert version.startswith("v") or "found package" in version, version
+
+
 def test_posit16_roundtrip_exact_values():
     # Exactly representable in posit<16,2>: powers of two near 1.0.
     for x in (0.0, 0.5, 1.0, 2.0, -1.0):
