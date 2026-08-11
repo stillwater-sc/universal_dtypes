@@ -1,10 +1,15 @@
 """cfloat NumPy dtype family — tests (issue #8).
 
-The cfloat configs are registered through the reusable NEP-42 harness. Both
-shipped configs are chosen for exact parity with a reference:
+The cfloat configs are registered through the reusable NEP-42 harness.
 
-- ``fp16``    (cfloat<16,5>) == ``numpy.float16``
-- ``fp8e5m2`` (cfloat<8,5>)  == ``ml_dtypes.float8_e5m2``
+NOTE ON THE IEEE / ml_dtypes COMPARISONS BELOW (#57): they are *rounding
+correctness* checks, not compatibility guarantees. `cfloat` applies one encoding
+rule across its whole parameter range and is the definition this package
+implements; `fp16` is deliberately **not** a drop-in for `numpy.float16`, nor
+`fp8e5m2` for `ml_dtypes.float8_e5m2`, and zero-copy aliasing across them is
+unsupported. Same field layout and round-to-nearest-even means the finite range
+must agree, which makes those types a convenient oracle for catching a rounding
+bug — and nothing more. The `±inf` encodings differ by design.
 """
 
 import numpy as np
@@ -80,8 +85,9 @@ def test_math_ufuncs(name, scalar, itemsize):
     np.testing.assert_array_equal(np.sqrt(a).astype(np.float64), [1.0, 2.0, 0.5])
 
 
-def test_fp16_matches_numpy_float16():
-    # fp16 conversion is bit-exact with numpy.float16 across the range.
+def test_fp16_rounding_matches_ieee_half_on_finite_values():
+    # Same layout + round-to-nearest-even, so the finite range must agree. This
+    # catches a rounding bug; it is not a compatibility guarantee (see #57).
     grid = np.linspace(-70000, 70000, 5001, dtype=np.float64)
     ours = np.array(grid, dtype=ud.fp16).astype(np.float64)
     with np.errstate(over="ignore"):
@@ -90,8 +96,8 @@ def test_fp16_matches_numpy_float16():
 
 
 @pytest.mark.skipif(not HAVE_ML, reason="ml_dtypes not installed")
-def test_fp8e5m2_matches_ml_dtypes():
-    # fp8e5m2 conversion is bit-exact with ml_dtypes.float8_e5m2 over the domain.
+def test_fp8e5m2_rounding_matches_reference_on_finite_values():
+    # As above: an oracle for rounding, not a supported interchange format.
     grid = np.linspace(-70000, 70000, 6001, dtype=np.float64)
     ours = np.array(grid, dtype=ud.fp8e5m2).astype(np.float64)
     with np.errstate(over="ignore"):
