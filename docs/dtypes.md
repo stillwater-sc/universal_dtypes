@@ -367,9 +367,20 @@ plausible future addition.
 single precision float hardware rather than going through the cfloat<> family — see
 [`design.md`](design.md).
 
-**`e4m3` is not shipped.** `cfloat<8,4>` is available in Universal if a config in
-that shape is wanted; note it is a `cfloat`, with `cfloat` semantics (it has
-`inf`, max 240), and is not the OCP e4m3fn format.
+**`e4m3` is not shipped yet**, and the target for it is the
+[OCP 8-bit Floating Point Specification](https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1)
+E4M3 — an open industry standard, not a library's dialect.
+
+Universal has `microfloat<8,4,false,true,true>` (aliased `e4m3`), whose
+*encoding* is already exact: all 256 patterns decode per the spec, `maxpos` is
+448 at `0x7e`, NaN at `0x7f`/`0xff`. What differs is the conversion policy from a
+wider type — it saturates finite overflow and `±inf` to ±448 where the spec calls
+for NaN. Shipping a dtype named `e4m3` that saturates where the standard says NaN
+would be worse than shipping none, so it waits on
+[stillwater-sc/universal#1302](https://github.com/stillwater-sc/universal/issues/1302).
+
+(`cfloat<8,4>` is a different thing again — a `cfloat` with `cfloat` semantics,
+`inf` and max 240 — and is not this format.)
 
 ## lns (logarithmic number system)
 
