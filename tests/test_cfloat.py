@@ -105,6 +105,74 @@ def test_fp8e5m2_rounding_matches_reference_on_finite_values():
     np.testing.assert_array_equal(ours, theirs)
 
 
+# ---- signaling-NaN conversion (upstream bug tripwire) -----------------------
+#
+# Universal's cfloat converts a *signaling* NaN to infinity when narrowing from a
+# wider IEEE type — the quiet bit is used as the discriminator instead of
+# "exponent all ones and mantissa nonzero". NaN silently becoming ±inf turns a
+# value that would have propagated and been detectable into a plausible one.
+#
+# Filed as stillwater-sc/universal#1303. There is no fix available here: it lands
+# when the pinned Universal (CMakeLists.txt, issue #66) moves past it.
+#
+# These are marked strict xfail rather than asserting today's wrong behavior, so
+# they document the *required* semantics. When the pin moves and the bug is
+# fixed, strict xfail turns the unexpected pass into a failure — which is the
+# signal to delete the markers, not a regression.
+
+
+def _signaling_nan64():
+    """A float64 NaN with the quiet bit clear."""
+    raw = np.array([0x7FF0000000000001], dtype=np.uint64)
+    return np.frombuffer(raw.tobytes(), dtype=np.float64)
+
+
+@pytest.mark.xfail(strict=True, reason="stillwater-sc/universal#1303: cfloat sNaN -> inf")
+@pytest.mark.parametrize("name,scalar,itemsize", CFLOATS)
+def test_signaling_nan_survives_cast(name, scalar, itemsize):
+    """A NaN must stay a NaN across the cast, whatever its payload."""
+    with np.errstate(all="ignore"):  # sNaN raises IEEE invalid by definition
+        got = _signaling_nan64().astype(scalar)
+    assert np.isnan(got)[0], "signaling NaN did not survive the cast"
+    assert not np.isinf(got)[0], "signaling NaN became infinity"
+
+
+@pytest.mark.xfail(strict=True, reason="stillwater-sc/universal#1303: cfloat sNaN -> inf")
+def test_every_ieee_half_nan_encoding_stays_nan_in_fp16():
+    """Sweep: every IEEE binary16 NaN encoding must land on a NaN in fp16.
+
+    2040 of the 2046 NaN encodings currently become infinity.
+    """
+    half = np.frombuffer(np.arange(1 << 16, dtype=np.uint16).tobytes(), dtype=np.float16)
+    is_nan_in = np.isnan(half)
+    with np.errstate(all="ignore"):
+        converted = half.astype(ud.fp16)
+    lost = int((is_nan_in & ~np.isnan(converted)).sum())
+    assert lost == 0, f"{lost} IEEE half NaN encodings did not stay NaN"
+
+
+def test_signaling_nan_survives_cast_for_non_cfloat_dtypes():
+    """The contrast that scopes the bug: posit, bfloat16 and takum handle the
+    same input correctly, so this is a cfloat conversion problem rather than
+    something in the shared dtype harness. Guards against a future 'fix' that
+    breaks these instead."""
+    snan = _signaling_nan64()
+    for name in ("posit16", "bfloat16", "takum16"):
+        with np.errstate(all="ignore"):
+            got = snan.astype(ud.dtypes[name])
+        assert np.isnan(got)[0], f"{name} lost a signaling NaN"
+        assert not np.isinf(got)[0], f"{name} turned a signaling NaN into infinity"
+
+
+def test_quiet_nan_survives_cast():
+    """The quiet-NaN path works today and must keep working."""
+    for _, scalar, _ in CFLOATS:
+        with np.errstate(all="ignore"):
+            got = np.array([np.nan], dtype=np.float64).astype(scalar)
+        assert np.isnan(got)[0]
+        assert not np.isinf(got)[0]
+
+
 def test_cfloat_registry():
     assert set(ud.cfloat_dtypes) == {name for name, _, _ in CFLOATS}
     for name, scalar, _ in CFLOATS:
