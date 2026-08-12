@@ -309,55 +309,78 @@ stays in `mtl5` (see [`design.md`](design.md)).
 
 ## cfloat (configurable float)
 
-`cfloat` is Universal's IEEE-754-style configurable float (sign / exponent /
-fraction, with optional subnormals / supernormals / saturation). The shipped
-configs are chosen for exact parity with a reference:
+`cfloat` is Universal's configurable float: sign / exponent / fraction with
+optional subnormals, supernormals and saturation, parameterized consistently from
+a couple of bits up to thousands. The shipped configs are two useful points in
+that space:
 
-| config | `cfloat<…>` | itemsize | equals |
+| config | `cfloat<…>` | itemsize | layout |
 |--------|-------------|---------:|--------|
-| `fp16`    | `cfloat<16,5,uint16,true,false,false>` | 2 | `numpy.float16` (IEEE half) |
-| `fp8e5m2` | `cfloat<8,5,uint8,true,false,false>`   | 1 | `ml_dtypes.float8_e5m2` |
+| `fp16`    | `cfloat<16,5,uint16,true,false,false>` | 2 | 1 sign / 5 exponent / 10 fraction |
+| `fp8e5m2` | `cfloat<8,5,uint8,true,false,false>`   | 1 | 1 sign / 5 exponent / 2 fraction |
 
-Both are IEEE-style: they have `±inf`, `NaN`, and subnormals, so `np.isnan`,
-`np.isinf`, and `np.isfinite` all work.
+Both have `±inf`, `NaN` and subnormals, so `np.isnan`, `np.isinf` and
+`np.isfinite` all work, and both round to nearest-even.
 
-**Scope of the parity: every finite encoding, but not the `±inf` bit patterns.**
-Rounding matches the reference exactly across the range (that is what
-`test_fp16_matches_numpy_float16` and `test_fp8e5m2_matches_ml_dtypes` pin).
-Sweeping the *entire* encoding space, exactly **4 of 65536** patterns differ for
-`fp16` and **4 of 256** for `fp8e5m2`; all 63488 (resp. 248) finite patterns are
-identical, as is `maxpos` (65504 / 57344). The divergence is that Universal's
-`cfloat` places `±inf` at a different pattern than IEEE does:
+### Not interchangeable with IEEE binary16 or ml_dtypes
 
-| pattern | `fp16` decodes as | `numpy.float16` decodes as |
-|---------|-------------------|-----------------------------|
+**`fp16` is not a drop-in for `numpy.float16`, and `fp8e5m2` is not a drop-in for
+`ml_dtypes.float8_e5m2`.** They share a field layout and produce the same values
+for finite data, but the encodings are *not* the same type and this package does
+not offer compatibility with either as a guarantee.
+
+`cfloat` applies one encoding rule uniformly across its whole parameter range.
+IEEE-754 does not: its special-value conventions are specific to the sizes the
+standard happens to enumerate, and do not generalize to arbitrary
+`(nbits, es)`. Where the two disagree, `cfloat` is the definition this package
+implements — the Stillwater KPU honors the `cfloat` encoding, so matching IEEE
+bit-for-bit is not a goal we would trade `cfloat` consistency for.
+
+Concretely, the disagreement is confined to the `±inf` patterns — 4 encodings out
+of 65536 for `fp16`, 4 of 256 for `fp8e5m2`:
+
+| pattern | `fp16` decodes as | IEEE binary16 decodes as |
+|---------|-------------------|--------------------------|
 | `0x7c00` | `NaN` | `+inf` |
 | `0x7ffe` | `+inf` | `NaN` |
 | `0xfc00` | `NaN` | `-inf` |
 | `0xfffe` | `-inf` | `NaN` |
 
-`fp8e5m2` diverges the same way at `0x7c`/`0x7e`/`0xfc`/`0xfe`. Every *other*
-all-ones-exponent pattern is `NaN` under both, so the NaN payload space itself
-substantially agrees — only the two `±inf` encodings per sign swap roles.
+`fp8e5m2` diverges the same way at `0x7c`/`0x7e`/`0xfc`/`0xfe`. Every other
+all-ones-exponent pattern is `NaN` under both.
 
-Converting between the types (`astype`) is correct in both directions — `inf`
-stays `inf`, `NaN` stays `NaN`. What you cannot do is **reinterpret a raw
-buffer** across the two (`np.frombuffer(x.tobytes(), ...)`) when it may contain
-`±inf`: those four patterns will change meaning. For finite data the
-reinterpretation is exact. This is tracked as
-[#57](https://github.com/stillwater-sc/universal_dtypes/issues/57).
+What this means in practice:
 
-`bfloat16` has no such caveat: all 65536 patterns are identical to
-`ml_dtypes.bfloat16`, including `±inf` and `NaN`.
+- **`astype` is correct in both directions** — `inf` stays `inf`, `NaN` stays
+  `NaN`, finite values are unchanged. Converting is the supported path and always
+  has been.
+- **Do not reinterpret a raw buffer** across `fp16` and `numpy.float16`
+  (`np.frombuffer(x.tobytes(), ...)`). Zero-copy aliasing is **not supported**
+  and will not be: those four patterns change meaning. Finite-only data happens
+  to survive it, which makes the trap quiet — use `astype`.
 
-**`bfloat16`** is itself a `cfloat<16,8,…>` config, but it keeps its own dedicated
-standalone implementation (for `ml_dtypes.bfloat16` parity) rather than going
-through this family — see [`design.md`](design.md).
+A recoding shim, so a copy across the boundary can fix up `±inf` explicitly
+rather than relying on the accident that finite data aliases cleanly, is a
+plausible future addition.
 
-**`e4m3` is not shipped yet.** No Universal type is bit-exact with
-`ml_dtypes.float8_e4m3fn` (OCP e4m3fn: max 448, no inf, overflow → NaN):
-`cfloat<8,4>` is IEEE-style (has inf, max 240), and `microfloat` e4m3 saturates
-large overflow to 448 instead of NaN. It's tracked as a follow-up.
+**`bfloat16`** is its own dedicated standalone implementation going through
+single precision float hardware rather than going through the cfloat<> family — see
+[`design.md`](design.md).
+
+**`e4m3` is not shipped yet**, and the target for it is the
+[OCP 8-bit Floating Point Specification](https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1)
+E4M3 — an open industry standard, not a library's dialect.
+
+Universal has `microfloat<8,4,false,true,true>` (aliased `e4m3`), whose
+*encoding* is already exact: all 256 patterns decode per the spec, `maxpos` is
+448 at `0x7e`, NaN at `0x7f`/`0xff`. What differs is the conversion policy from a
+wider type — it saturates finite overflow and `±inf` to ±448 where the spec calls
+for NaN. Shipping a dtype named `e4m3` that saturates where the standard says NaN
+would be worse than shipping none, so it waits on
+[stillwater-sc/universal#1302](https://github.com/stillwater-sc/universal/issues/1302).
+
+(`cfloat<8,4>` is a different thing again — a `cfloat` with `cfloat` semantics,
+`inf` and max 240 — and is not this format.)
 
 ## lns (logarithmic number system)
 

@@ -37,7 +37,7 @@ resolutions, and the exact Universal template configuration behind each — are 
 | **bfloat16** | `bfloat16` | brain float (1/8/7); bit-for-bit `ml_dtypes.bfloat16` |
 | **posit** | `posit8`, `posit16`, `posit32`, `posit64`; `posit8e0`, `posit8e1`, `posit16e1`; `posit12`, `posit20`, `posit24`, `posit28`, `posit40`, `posit48` | tapered precision, single **NaR**. Bare `posit{n}` is `es=2`; `posit{n}e{es}` selects the exponent size |
 | **takum** | `takum8`, `takum16`, `takum32`, `takum64` | linear takum: tapered like posit, but the dynamic range is ~fixed across widths, so extra bits buy precision, not range. Single **NaR** |
-| **cfloat** | `fp16`, `fp8e5m2` | configurable IEEE-style floats; round identically to `numpy.float16` and `ml_dtypes.float8_e5m2` |
+| **cfloat** | `fp16`, `fp8e5m2` | configurable floats: one encoding rule from a couple of bits to thousands. Not interchangeable with IEEE binary16 / `ml_dtypes` |
 | **lns** | `lns16`, `lns32` | logarithmic number system (`lns<16,8>` / `lns<32,16>`) |
 | **fixpnt** | `fixpnt8`, `fixpnt16`; `q7`, `q15`, `q31`, `iq24`, `q5_23` | saturating fixed-point, incl. the standard TI / Analog Devices / ARM DSP formats |
 | **cascade** | `dd_cascade`, `td_cascade`, `qd_cascade` | double/triple/quad-double expansions: ~106 / ~159 / ~212 significand bits |
@@ -236,15 +236,17 @@ maxpos/maxneg. `np.isnan` maps onto NaR.
 
 ### Configurable floats — `fp16`, `fp8e5m2`
 
-Universal's `cfloat` is a parameterized IEEE-754-style float (sign / exponent /
-fraction). Both shipped configs are IEEE-style with `±inf`, `NaN`, and
-subnormals, chosen to round exactly like a reference implementation. The parity
-covers every finite encoding, but Universal places `±inf` at a different bit
-pattern than IEEE (4 patterns out of the whole space), so a raw buffer
-containing infinities cannot be reinterpreted across the two —
-[#57](https://github.com/stillwater-sc/universal_dtypes/issues/57). `astype` is
-correct either way. (`e4m3` is not shipped yet; see
-[`docs/dtypes.md`](docs/dtypes.md#cfloat-configurable-float).)
+Universal's `cfloat` is a configurable float (sign / exponent / fraction) with
+one encoding rule applied consistently from a couple of bits up to thousands.
+Both shipped configs have `±inf`, `NaN` and subnormals.
+
+`fp16` is **not** a drop-in for `numpy.float16`, and `fp8e5m2` is **not** one for
+`ml_dtypes.float8_e5m2` — they share a field layout and agree on finite values,
+but they are different types and no compatibility is offered. Where `cfloat` and
+IEEE disagree (the `±inf` patterns), `cfloat` is what this package implements;
+the Stillwater KPU honors the `cfloat` encoding. Convert with `astype`, which is
+correct in both directions; **do not** reinterpret a raw buffer across them. See
+[`docs/dtypes.md`](docs/dtypes.md#cfloat-configurable-float).
 
 ### Fixed-point — `fixpnt8/16`, `q7`, `q15`, `q31`, `iq24`, `q5_23`
 
