@@ -185,48 +185,64 @@ def _one_ulp_above_one(T, itemsize):
     return np.frombuffer((raw + 1).to_bytes(itemsize, "little"), dtype=T)
 
 
-def test_takum64_arithmetic_is_limited_to_double():
-    """PINNED LIMITATION, not a preference.
+def test_takum64_arithmetic_is_full_width():
+    """takum64 arithmetic carries its full ~59-bit significand (#65).
 
-    Universal implements takum's +, -, *, / by converting both operands to
-    `double`, computing there, and converting back (takum_impl.hpp). For
-    takum8/16/32 that is exact — their significands are well under double's 53
-    bits, so it is a single correct rounding. For takum64, whose significand
-    reaches ~59 bits, the operands are rounded to double *first*, so any detail
-    below double precision is lost before the operation runs.
-
-    The encoding, comparisons, sort and storage all still carry the full width
-    (see test_takum64_orders_at_full_precision) — it is specifically arithmetic
-    that is capped. posit64 has native arithmetic and does not share this, which
-    is the contrast asserted below.
+    Universal v4.7.9 evaluated takum's + - * / by converting both operands to
+    double, so a value one encoding step above 1.0 lost its last bits before the
+    operation ran and even `x + 0` did not round-trip. From v5.x it evaluates
+    wide configs exactly in integers (universal#1300). posit64, native at full
+    width all along, is the consistency check.
     """
     T = ud.takum64
     tricky = _one_ulp_above_one(T, 8)
     zero = np.array([0.0], dtype=T)
     assert tricky.tobytes() != np.array([1.0], dtype=T).tobytes()  # precondition
-    assert (tricky + zero).tobytes() != tricky.tobytes(), "adding zero should be a no-op"
-    assert (tricky * np.array([1.0], dtype=T)).tobytes() != tricky.tobytes()
+    assert (tricky + zero).tobytes() == tricky.tobytes(), "adding zero must be a no-op"
+    assert (tricky * np.array([1.0], dtype=T)).tobytes() == tricky.tobytes()
+    assert (tricky - zero).tobytes() == tricky.tobytes()
+    assert (tricky / np.array([1.0], dtype=T)).tobytes() == tricky.tobytes()
 
-    # posit64, by contrast, has native arithmetic at full width.
     P = ud.posit64
     p_tricky = _one_ulp_above_one(P, 8)
     assert (p_tricky + np.array([0.0], dtype=P)).tobytes() == p_tricky.tobytes()
 
 
-def test_takum64_cross_cast_exact_within_double():
-    """The cross-cast expansion builds its residual terms with the type's own
-    arithmetic, so it inherits the cap above: takum64 round-trips exactly for
-    anything double can hold, but not for detail below that.
+def test_takum_arithmetic_rounds_once():
+    """takum32 products are correctly rounded, not double-rounded.
 
-    takum8/16/32 round-trip exactly for everything, since double covers them.
+    Evaluating through double rounds twice (to 53 bits, then into the type),
+    which is harmless only for significands up to 25 bits. takum32 reaches 28, so
+    v4.7.9 returned 0x44000002 for this product, where the correctly rounded
+    result is 0x44000003 (universal#1616).
+    """
+    T = ud.takum32
+    a = np.array([0x44000001], dtype=np.uint32).view(T)
+    b = np.array([0x40000001], dtype=np.uint32).view(T)
+    assert int((a * b).view(np.uint32)[0]) == 0x44000003
+
+
+def test_takum64_cross_cast_round_trips_exactly():
+    """The cross-cast expansion builds its residual terms with the type's own
+    arithmetic, so now that takum64 arithmetic is full width the round trip
+    through the cascades is exact below double precision too, as for posit64.
     """
     for _, T, size in TAKUMS:
         a = np.array([1.0, 0.5, -4.0, 1 / 3, 1e30], dtype=T)
         assert a.astype(ud.qd_cascade).astype(T).tobytes() == a.tobytes()
-    # the sub-double bit is where takum64 cannot round-trip
     T = ud.takum64
     tricky = _one_ulp_above_one(T, 8)
-    assert tricky.astype(ud.qd_cascade).astype(T).tobytes() != tricky.tobytes()
+    for cascade in (ud.dd_cascade, ud.td_cascade, ud.qd_cascade):
+        assert tricky.astype(cascade).astype(T).tobytes() == tricky.tobytes()
+
+
+def test_takum64_math_ufuncs_are_still_double_limited():
+    """What the fix does NOT reach: math ufuncs are this package's own, computed
+    in double and rounded back for every dtype, so sqrt of the value one step
+    above 1.0 is sqrt(1.0) -- the input was rounded to double first."""
+    T = ud.takum64
+    tricky = _one_ulp_above_one(T, 8)
+    assert np.sqrt(tricky).tobytes() == np.sqrt(np.array([1.0], dtype=T)).tobytes()
 
 
 # ---- integration with the rest of the package -------------------------------

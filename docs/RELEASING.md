@@ -139,7 +139,7 @@ Universal supplies the arithmetic behind every dtype, and it is **pinned to a
 release tag** in the top-level `CMakeLists.txt`:
 
 ```cmake
-set(UD_UNIVERSAL_TAG "v4.7.9")
+set(UD_UNIVERSAL_TAG "v5.11.0")
 ```
 
 That one variable drives both the `FetchContent` tag and the version reported by
@@ -148,13 +148,16 @@ That one variable drives both the `FetchContent` tag and the version reported by
 A bump is a **behavior change**, not a chore: it can alter numerics without any
 change to our own source. Treat it accordingly.
 
-1. Change `UD_UNIVERSAL_TAG` and nothing else, in its own PR — so the diff in
-   behavior is reviewable in isolation.
+1. Change `UD_UNIVERSAL_TAG` in its own PR, with nothing else beyond what
+   step 2 forces — so the diff in behavior is reviewable in isolation.
 2. Run the full suite. Tests that pin an upstream limitation are deliberate
    tripwires and are *expected* to fail when upstream fixes the thing they
-   describe (e.g. `test_takum64_arithmetic_is_limited_to_double`, see
-   [#65](https://github.com/stillwater-sc/universal_dtypes/issues/65)). A red
-   tripwire means "re-grade the docs and invert the test", not "revert the bump".
+   describe. A red tripwire means "re-grade the docs and invert the test", not
+   "revert the bump". The v4.7.9 → v5.11.0 bump is the worked example: the
+   takum64 double-precision tests of
+   [#65](https://github.com/stillwater-sc/universal_dtypes/issues/65) went red,
+   and the cfloat signaling-NaN tests, held as strict xfails for
+   universal#1303, began passing.
 3. Use a conventional-commit type that reflects the effect: `fix` when it
    corrects numerics, `feat` when it exposes something new, `chore` only when
    genuinely inert. It should appear in the changelog either way — a silent

@@ -105,21 +105,16 @@ def test_fp8e5m2_rounding_matches_reference_on_finite_values():
     np.testing.assert_array_equal(ours, theirs)
 
 
-# ---- signaling-NaN conversion (upstream bug tripwire) -----------------------
+# ---- signaling-NaN conversion --------------------------------------------------
 #
-# Universal's cfloat converts a NaN whose quiet bit is clear into infinity when
-# narrowing from a wider IEEE type — the quiet bit is used as the discriminator
-# instead of "exponent all ones and mantissa nonzero". NaN silently becoming
-# ±inf turns a value that would have propagated and been detectable into a
-# plausible one.
+# Universal v4.7.9's cfloat converted a NaN whose quiet bit is clear into
+# infinity when narrowing from a wider IEEE type: the quiet bit was used as the
+# discriminator instead of "exponent all ones and mantissa nonzero". NaN silently
+# becoming +-inf turns a value that would have propagated and been detectable
+# into a plausible one.
 #
-# Filed as stillwater-sc/universal#1303. There is no fix available here: it lands
-# when the pinned Universal (CMakeLists.txt, issue #66) moves past it.
-#
-# These are marked strict xfail rather than asserting today's wrong behavior, so
-# they document the *required* semantics. When the pin moves and the bug is
-# fixed, strict xfail turns the unexpected pass into a failure — which is the
-# signal to delete the markers, not a regression.
+# Fixed upstream (stillwater-sc/universal#1303) and picked up by the v5.x pin.
+# These ran as strict xfails until then; they now assert the required semantics.
 
 
 def _ieee_half_nan_encodings():
@@ -135,13 +130,12 @@ def _ieee_half_nan_encodings():
     return half[np.isnan(half)]
 
 
-@pytest.mark.xfail(strict=True, reason="stillwater-sc/universal#1303: cfloat NaN -> inf")
 @pytest.mark.parametrize("name,scalar,itemsize", CFLOATS)
 def test_every_ieee_half_nan_encoding_stays_nan(name, scalar, itemsize):
     """Every IEEE binary16 NaN encoding must land on a NaN, whatever its payload.
 
-    2040 of the 2046 currently become infinity — the ones whose quiet bit is
-    clear.
+    Under Universal v4.7.9, 2040 of the 2046 became infinity — the ones whose
+    quiet bit is clear.
     """
     nan_in = _ieee_half_nan_encodings()
     with np.errstate(all="ignore"):  # a signaling NaN raises IEEE invalid by definition

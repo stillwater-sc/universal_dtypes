@@ -16,17 +16,16 @@
 // Like posit, takum has a single exceptional value NaR (no infinity, no NaN
 // payloads), and storage is two's complement with zero = 0x00..0, NaR = 0x80..0.
 //
-// KNOWN LIMITATION — takum64 arithmetic is capped at double precision.
-// Universal implements takum's + - * / by converting both operands to double,
-// computing there, and converting back (see takum_impl.hpp operator+= etc).
-// For takum8/16/32 that is exact: their significands are far under double's 53
-// bits, so it is a single correct rounding, the same rule this package already
-// documents for the math ufuncs. takum64's significand reaches ~59 bits, so its
-// operands are rounded to double *before* the operation and detail below that is
-// lost. Encoding, casts, comparisons and sort still carry the full width (lt/eq
-// below use takum's own operators, not to_double), so only arithmetic is capped.
-// posit64 does NOT share this — Universal gives it native arithmetic. Pinned by
-// test_takum64_arithmetic_is_limited_to_double.
+// Arithmetic is correctly rounded at every width. Universal (from v5.x; universal
+// #1300, #1616) evaluates + - * / in a double only where that is a single
+// effective rounding -- significands up to 25 bits, i.e. takum8 and takum16 --
+// and everything wider, takum32 and takum64 included, exactly in integers with
+// one rounding in the codec. Before that, takum32 was double-rounded (an
+// occasional wrong last bit) and takum64 was capped at double precision. Pinned
+// by test_takum_arithmetic_rounds_once and test_takum64_arithmetic_is_full_width.
+//
+// What still goes through double is this package's own math ufuncs (exp, sqrt,
+// ...), as for every dtype, so for takum64 those remain double-limited.
 //
 // Adding a config is one line in UD_TAKUM_LIST below.
 
@@ -68,6 +67,9 @@ struct TakumTraitsBase {
     // 53 the out-cast is lossy and comparisons must not route through double.
     // Measured: takum64's adjacent encodings collapse to the same double and its
     // double round-trip is inexact, while takum8/16/32 round-trip exactly.
+    // This is about the CAST only. Universal's own wide-arithmetic switch
+    // (wide_significand, a double-rounding bound) is a different predicate
+    // and does not need to agree with this one.
     static constexpr bool wider_than_double = (NBITS - 1 - RBITS) > 53;
     static constexpr NPY_CASTING to_float_casting =
         wider_than_double ? NPY_UNSAFE_CASTING : NPY_SAFE_CASTING;
