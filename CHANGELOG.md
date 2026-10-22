@@ -16,6 +16,27 @@ skips the yanked `1.0.0` (see [`docs/RELEASING.md`](docs/RELEASING.md) §3).
 
 <!-- version list -->
 
+## v2.5.1 (2026-10-22)
+
+### Bug Fixes
+
+- **build**: Pin Universal to v5.11.0, re-grading what it fixes
+  ([#72](https://github.com/stillwater-sc/universal_dtypes/pull/72),
+  [`c644423`](https://github.com/stillwater-sc/universal_dtypes/commit/c64442320b57010c19306426ccb08bec99c2fcae))
+
+### Documentation
+
+- **cfloat**: Drop the IEEE / ml_dtypes interchangeability claims
+  ([#68](https://github.com/stillwater-sc/universal_dtypes/pull/68),
+  [`f34fbe7`](https://github.com/stillwater-sc/universal_dtypes/commit/f34fbe71c88cfdc1866c4226dfb2ab8c6c46aac9))
+
+### Testing
+
+- **cfloat**: Pin that NaN must survive the cast into cfloat
+  ([#70](https://github.com/stillwater-sc/universal_dtypes/pull/70),
+  [`e0242a6`](https://github.com/stillwater-sc/universal_dtypes/commit/e0242a6b374bc457b5c12914c5ee15cae813dfc3))
+
+
 ## v2.5.0 (2026-08-11)
 
 ### Features
