@@ -24,7 +24,7 @@ endif()
 #
 # Single source of truth: the same value drives the FetchContent tag and the
 # version reported by universal_dtypes.build_info(), so the two cannot drift.
-set(UD_UNIVERSAL_TAG "v4.7.9")
+set(UD_UNIVERSAL_TAG "v5.11.0")
 
 find_package(universal QUIET)
 if(universal_FOUND)

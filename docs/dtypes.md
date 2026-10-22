@@ -439,33 +439,30 @@ rather than range. posit does the opposite:
 So `takum8` reaches magnitudes `posit8` cannot express at all, at some cost in
 precision near ±1, while by 64 bits the two ranges converge.
 
-### takum64 arithmetic is capped at double precision
+### Precision at full width
 
-Universal implements takum's `+ - * /` by converting both operands to `double`,
-computing there, and converting back. For `takum8`/`takum16`/`takum32` that is
-**exact** — their significands are far below double's 53 bits, so it is a single
-correct rounding, the same rule the [math ufuncs](#reductions-and-the-accumulation-contract)
-already follow.
+The **encoding**, **casts**, **comparisons**, **sort** and `min`/`max` carry each
+config's full width, including `takum64`'s ~59-bit significand. Because that
+exceeds double's 53 bits, the out-cast to `float64` is graded *unsafe* for
+`takum64` (it is safe for the narrower configs).
 
-`takum64`'s significand reaches ~59 bits, so its operands are rounded to `double`
-*before* the operation and any detail below that is lost:
+`+ - * /` are **correctly rounded** for every config. Universal evaluates them in
+a `double` only where that is provably a single rounding (significands up to 25
+bits: `takum8`, `takum16`) and exactly in integers for the rest, `takum32` and
+`takum64` included. In-type reductions (`sum`, `prod`) inherit this, and
+cross-dtype casts of `takum64` through `dd`/`td`/`qd` round-trip exactly, as
+`posit64` does.
 
-```python
-a = np.array([1.0], dtype=ud.takum64)
-# a value one encoding step above 1.0 is distinct, and sorts correctly...
-# ...but adding zero to it does not round-trip.
-```
+The exception is the [math ufuncs](#reductions-and-the-accumulation-contract),
+which, as for every dtype here, are computed in `double` and rounded back, so
+`np.sqrt` or `np.exp` on `takum64` is limited to double precision.
 
-What still carries the full width: the **encoding**, **casts**, **comparisons**,
-**sort**, and `min`/`max`. Only arithmetic is capped. The out-cast to `float64`
-is graded *unsafe* for `takum64` accordingly (it is safe for the narrower
-configs), and cross-dtype casts round-trip exactly for anything `double` can
-hold, but not below it — the cross-cast expansion builds its residual terms with
-the type's own arithmetic, so it inherits the same cap.
-
-`posit64` does **not** share this: Universal gives it native arithmetic, so it
-round-trips and computes at its full width. If you need more than double's
-precision from arithmetic, prefer `posit64` or the `dd`/`td`/`qd` cascades.
+> **universal_dtypes 2.5.0 and earlier** (built on Universal v4.7.9): `takum64`
+> arithmetic was evaluated in `double`, so detail below double precision was
+> lost before the operation ran, and `takum32` arithmetic was rounded twice,
+> through `double` and then into the type, occasionally landing one encoding off
+> (`0x44000001 * 0x40000001` gave `0x44000002`; the correct result is
+> `0x44000003`). `build_info()["universal_version"]` says which you have.
 
 ## posit
 
