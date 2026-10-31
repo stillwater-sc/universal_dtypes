@@ -27,7 +27,8 @@ jobs:
         include:
           - { os: ubuntu-22.04, python: "3.10" }
           - { os: ubuntu-22.04, python: "3.12" }
-          - { os: macos-14, python: "3.12" }
+          # macOS 14 images are retired on 2026-11-02 (actions/runner-images#13518).
+          - { os: macos-15, python: "3.12" }
           - { os: windows-2022, python: "3.12" }
     runs-on: ${{ matrix.os }}
     steps:
