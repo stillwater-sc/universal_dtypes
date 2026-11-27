@@ -2,9 +2,11 @@
 
 The cfloat configs are registered through the reusable NEP-42 harness.
 
-IEEE AND ml_dtypes: from 3.0.0 (Universal v5.18.0), `fp16` is bit-identical to
-`numpy.float16` and `fp8e5m2` to `ml_dtypes.float8_e5m2`, `±inf` and `NaN`
-included. Universal v5.15.0 made cfloat's inf the encoding right after maxpos,
+IEEE AND ml_dtypes: from 3.0.0 (Universal v5.18.0), `fp16` encodes as
+`numpy.float16` and `fp8e5m2` as `ml_dtypes.float8_e5m2`, `±inf` included: every
+non-NaN pattern means the same number, and every NaN pattern a NaN. A NaN's sign
+and payload are not kept by conversions; cfloat writes a canonical NaN.
+Universal v5.15.0 made cfloat's inf the encoding right after maxpos,
 with every NaN above it (universal#1895, #1897), which is IEEE-754's rule for
 configs without max-exponent values. Before that, `±inf` was `s.11..11.11..10`,
 and the four `±inf` patterns meant something else (#57). The exhaustive tests
@@ -233,3 +235,12 @@ def test_fp8e5m2_decodes_every_pattern_as_ml_dtypes():
     theirs = bits.view(ml_dtypes.float8_e5m2).astype(np.float64)
     bad = np.nonzero(~_same_values(ours, theirs))[0]
     assert bad.size == 0, f"{bad.size} patterns differ, first {hex(int(bits[bad[0]]))}"
+
+
+def test_nan_conversions_are_canonical():
+    """The documented limit of the IEEE identity: a NaN keeps neither its sign
+    nor its payload through a conversion, where numpy.float16 keeps both."""
+    src = np.array([0xFFF8000000000000, 0x7FF8000000001234], dtype=np.uint64).view(np.float64)
+    with np.errstate(invalid="ignore"):
+        got = src.astype(ud.fp16).view(np.uint16)
+    assert list(got) == [0x7E00, 0x7E00]

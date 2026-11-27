@@ -322,14 +322,22 @@ that space:
 Both have `±inf`, `NaN` and subnormals, so `np.isnan`, `np.isinf` and
 `np.isfinite` all work, and both round to nearest-even.
 
-### Bit-identical to IEEE binary16 and ml_dtypes, from 3.0.0
+### IEEE binary16 and ml_dtypes encodings, from 3.0.0
 
 **`fp16` encodes every value as `numpy.float16` does, and `fp8e5m2` as
-`ml_dtypes.float8_e5m2` does**, including `±inf` and `NaN`. Every one of the
-65536 `fp16` patterns decodes to the same value as the IEEE binary16 pattern, and
-encoding gives the same bits. So a raw buffer can be reinterpreted across them
+`ml_dtypes.float8_e5m2` does**, `±inf` included. Every one of the 65536 `fp16`
+patterns decodes to the same value as the IEEE binary16 pattern: each non-NaN
+pattern to the same number, and each of the 2046 NaN patterns to a NaN. So a raw
+buffer can be reinterpreted across them
 (`np.frombuffer(x.tobytes(), dtype=np.float16)`), as well as converted with
 `astype`.
+
+**NaN sign and payload are not kept.** A conversion into `fp16` or `fp8e5m2`
+writes cfloat's canonical NaN (`0x7e00` for a quiet NaN in `fp16`), whatever the
+source's sign or payload, and a conversion out of them gives a canonical NaN too.
+`numpy.float16` keeps both: float64 `-NaN` becomes `0xfe00` there and `0x7e00`
+here. So NaN data that passes through a conversion can change bits, though it
+stays NaN.
 
 This changed in 3.0.0, with the move to Universal v5.18.0. From v5.15.0, cfloat
 uses one rule in every configuration: inf is the encoding right after maxpos,

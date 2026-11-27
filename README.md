@@ -37,7 +37,7 @@ resolutions, and the exact Universal template configuration behind each — are 
 | **bfloat16** | `bfloat16` | brain float (1/8/7); bit-for-bit `ml_dtypes.bfloat16` |
 | **posit** | `posit8`, `posit16`, `posit32`, `posit64`; `posit8e0`, `posit8e1`, `posit16e1`; `posit12`, `posit20`, `posit24`, `posit28`, `posit40`, `posit48` | tapered precision, single **NaR**. Bare `posit{n}` is `es=2`; `posit{n}e{es}` selects the exponent size |
 | **takum** | `takum8`, `takum16`, `takum32`, `takum64` | linear takum: tapered like posit, but the dynamic range is ~fixed across widths, so extra bits buy precision, not range. Single **NaR** |
-| **cfloat** | `fp16`, `fp8e5m2` | configurable floats: one encoding rule from a couple of bits to thousands. Bit-for-bit IEEE binary16 / `ml_dtypes.float8_e5m2`, `±inf` and `NaN` included, from 3.0.0 |
+| **cfloat** | `fp16`, `fp8e5m2` | configurable floats: one encoding rule from a couple of bits to thousands. Bit-for-bit IEEE binary16 / `ml_dtypes.float8_e5m2` encodings, `±inf` included, from 3.0.0 (a NaN's sign and payload are not kept) |
 | **lns** | `lns16`, `lns32` | logarithmic number system (`lns<16,8>` / `lns<32,16>`) |
 | **fixpnt** | `fixpnt8`, `fixpnt16`; `q7`, `q15`, `q31`, `iq24`, `q5_23` | saturating fixed-point, incl. the standard TI / Analog Devices / ARM DSP formats |
 | **cascade** | `dd_cascade`, `td_cascade`, `qd_cascade` | double/triple/quad-double expansions: ~106 / ~159 / ~212 significand bits |
@@ -242,8 +242,9 @@ one encoding rule applied consistently from a couple of bits up to thousands.
 Both shipped configs have `±inf`, `NaN` and subnormals.
 
 From 3.0.0, `fp16` encodes every value as `numpy.float16` does, and `fp8e5m2` as
-`ml_dtypes.float8_e5m2` does, `±inf` and `NaN` included, so a raw buffer can be
-reinterpreted across them. Before 3.0.0, `cfloat` encoded `±inf` differently, and
+`ml_dtypes.float8_e5m2` does, `±inf` included, so a raw buffer can be
+reinterpreted across them. Every NaN pattern means NaN in both, but conversions
+write a canonical NaN, so a NaN's sign and payload are not kept. Before 3.0.0, `cfloat` encoded `±inf` differently, and
 infinities stored by 2.x read back as `NaN`. See
 [`docs/dtypes.md`](docs/dtypes.md#cfloat-configurable-float).
 

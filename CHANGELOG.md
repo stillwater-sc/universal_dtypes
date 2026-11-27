@@ -17,8 +17,10 @@ skips the yanked `1.0.0` (see [`docs/RELEASING.md`](docs/RELEASING.md) §3).
 ### Breaking
 
 - **Universal pinned to v5.18.0** (was v5.11.0). **`fp16` and `fp8e5m2` now
-  encode `±inf` and `NaN` as IEEE-754 does**, so they are bit-identical to
-  `numpy.float16` and `ml_dtypes.float8_e5m2`. This reverses the "not
+  encode `±inf` as IEEE-754 does**, so every pattern decodes as it does in
+  `numpy.float16` and `ml_dtypes.float8_e5m2`. Each non-NaN pattern gives the
+  same number, and each NaN pattern a NaN. Conversions still write a canonical
+  NaN, so a NaN's sign and payload are not kept. This reverses the "not
   interchangeable" position of #57/#68.
   - Universal v5.15.0 made cfloat's inf the encoding right after maxpos
     (universal#1895, #1897). Before, `+inf` was `0x7ffe` and `0x7c00` decoded as
