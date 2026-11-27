@@ -14,6 +14,53 @@ skips the yanked `1.0.0` (see [`docs/RELEASING.md`](docs/RELEASING.md) §3).
 
 ## [Unreleased]
 
+### Breaking
+
+- **Universal pinned to v5.18.0** (was v5.11.0). **`fp16` and `fp8e5m2` now
+  encode `±inf` as IEEE-754 does**, so every pattern decodes as it does in
+  `numpy.float16` and `ml_dtypes.float8_e5m2`. Each non-NaN pattern gives the
+  same number, and each NaN pattern a NaN. Conversions still write a canonical
+  NaN, so a NaN's sign and payload are not kept. This reverses the "not
+  interchangeable" position of #57/#68.
+  - Universal v5.15.0 made cfloat's inf the encoding right after maxpos
+    (universal#1895, #1897). Before, `+inf` was `0x7ffe` and `0x7c00` decoded as
+    `NaN`.
+  - **Stored data:** infinities written by 2.x (`fp16` `0x7ffe`/`0xfffe`,
+    `fp8e5m2` `0x7e`/`0xfe`) read back as `NaN`. The patterns 2.x decoded as
+    `NaN` but never wrote, `0x7c00`/`0xfc00` and `0x7c`/`0xfc`, which a raw
+    buffer can carry, now decode as `±inf`. Other NaN patterns and finite values
+    are unchanged. Re-encode such data through `float64` with the version that wrote
+    it.
+  - Tests pin the new encodings exhaustively (all 65536 `fp16` patterns against
+    `numpy.float16`, all 256 `fp8e5m2` patterns against `ml_dtypes`), plus
+    zero-copy aliasing to `float16`. Five of them fail against 2.5.1.
+
+### Fixed
+
+- **q31 `sqrt` is correctly rounded.** Under v5.11.0, the square root of maxpos
+  wrapped to −1, and 1581 of 5000 random operands were wrong. A new test checks
+  each result against the exact integer square root.
+- **A fixed-point division by zero saturates, as before, instead of aborting.**
+  From v5.15.0, Universal throws `fixpnt_divide_by_zero` by default
+  (universal#1907). The exception can't cross a NumPy ufunc loop, so it killed
+  the interpreter. The build sets `FIXPNT_THROW_DIVIDE_BY_ZERO=0`, and `x / 0`
+  is maxpos or maxneg by the dividend's sign, for every fixed-point dtype. The
+  new test runs in a child process, so a regression fails it instead of killing
+  pytest.
+
+### Changed
+
+- **GCC 12 is required.** GCC 11 can't compile Universal 5.13 and later. CI's
+  Linux jobs move from ubuntu-22.04's default GCC 11.4 to `g++-12`, and CMake
+  stops with the reason on GCC < 12. Wheels build in manylinux_2_28 and are
+  unaffected.
+- `docs/RELEASING.md` gains a step: diff the numerics against the published
+  wheel, because the suite stayed green through all three of these.
+
+The numerics diff against the 2.5.1 wheel covered 32 dtypes and 381 arrays.
+376 are bit-identical, and the other five are the `fp16` and `fp8e5m2`
+encodings and q31 `sqrt` above.
+
 <!-- version list -->
 
 ## v2.5.1 (2026-10-22)

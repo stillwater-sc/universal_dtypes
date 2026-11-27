@@ -2,14 +2,15 @@
 
 The cfloat configs are registered through the reusable NEP-42 harness.
 
-NOTE ON THE IEEE / ml_dtypes COMPARISONS BELOW (#57): they are *rounding
-correctness* checks, not compatibility guarantees. `cfloat` applies one encoding
-rule across its whole parameter range and is the definition this package
-implements; `fp16` is deliberately **not** a drop-in for `numpy.float16`, nor
-`fp8e5m2` for `ml_dtypes.float8_e5m2`, and zero-copy aliasing across them is
-unsupported. Same field layout and round-to-nearest-even means the finite range
-must agree, which makes those types a convenient oracle for catching a rounding
-bug — and nothing more. The `±inf` encodings differ by design.
+IEEE AND ml_dtypes: from 3.0.0 (Universal v5.18.0), `fp16` encodes as
+`numpy.float16` and `fp8e5m2` as `ml_dtypes.float8_e5m2`, `±inf` included: every
+non-NaN pattern means the same number, and every NaN pattern a NaN. A NaN's sign
+and payload are not kept by conversions; cfloat writes a canonical NaN.
+Universal v5.15.0 made cfloat's inf the encoding right after maxpos,
+with every NaN above it (universal#1895, #1897), which is IEEE-754's rule for
+configs without max-exponent values. Before that, `±inf` was `s.11..11.11..10`,
+and the four `±inf` patterns meant something else (#57). The exhaustive tests
+below pin the new encodings.
 """
 
 import numpy as np
@@ -86,8 +87,7 @@ def test_math_ufuncs(name, scalar, itemsize):
 
 
 def test_fp16_rounding_matches_ieee_half_on_finite_values():
-    # Same layout + round-to-nearest-even, so the finite range must agree. This
-    # catches a rounding bug; it is not a compatibility guarantee (see #57).
+    # Same layout + round-to-nearest-even, so the finite range must agree.
     grid = np.linspace(-70000, 70000, 5001, dtype=np.float64)
     ours = np.array(grid, dtype=ud.fp16).astype(np.float64)
     with np.errstate(over="ignore"):
@@ -97,7 +97,6 @@ def test_fp16_rounding_matches_ieee_half_on_finite_values():
 
 @pytest.mark.skipif(not HAVE_ML, reason="ml_dtypes not installed")
 def test_fp8e5m2_rounding_matches_reference_on_finite_values():
-    # As above: an oracle for rounding, not a supported interchange format.
     grid = np.linspace(-70000, 70000, 6001, dtype=np.float64)
     ours = np.array(grid, dtype=ud.fp8e5m2).astype(np.float64)
     with np.errstate(over="ignore"):
@@ -172,3 +171,76 @@ def test_cfloat_registry():
         assert ud.cfloat_dtypes[name] is scalar
     # rolled into the top-level registry too
     assert set(ud.cfloat_dtypes) <= set(ud.dtypes)
+
+
+# ---- IEEE-754 encodings (3.0.0, Universal v5.15.0+) -------------------------------
+#
+# Each of these fails against 2.x, whose cfloat encoded +-inf as s.11..11.11..10:
+# there 0x7c00 decoded as NaN and float('inf') encoded as 0x7ffe.
+
+
+def _same_values(ours, theirs):
+    """Equal as values, with NaN equal to NaN and the sign of every non-NaN kept."""
+    both_nan = np.isnan(ours) & np.isnan(theirs)
+    same = (ours == theirs) & (np.signbit(ours) == np.signbit(theirs))
+    return both_nan | same
+
+
+def test_fp16_decodes_every_pattern_as_ieee_half():
+    bits = np.arange(1 << 16, dtype=np.uint64).astype(np.uint16)
+    ours = bits.view(ud.fp16).astype(np.float64)
+    theirs = bits.view(np.float16).astype(np.float64)
+    bad = np.nonzero(~_same_values(ours, theirs))[0]
+    assert bad.size == 0, f"{bad.size} patterns differ, first {hex(int(bits[bad[0]]))}"
+
+
+def test_fp16_encodes_as_ieee_half():
+    rng = np.random.default_rng(57)
+    grid = np.concatenate(
+        [
+            [0.0, -0.0, np.inf, -np.inf, np.nan, 65504.0, 65520.0, -65520.0, 1e30],
+            [2.0**-24, 2.0**-25],
+            rng.standard_normal(20000) * np.exp(rng.uniform(-20, 12, 20000)),
+        ]
+    )
+    with np.errstate(over="ignore"):
+        theirs = grid.astype(np.float16).view(np.uint16)
+    ours = grid.astype(ud.fp16).view(np.uint16)
+    bad = np.nonzero(ours != theirs)[0]
+    assert bad.size == 0, f"{bad.size} encodings differ, first x={grid[bad[0]]!r}"
+
+
+def test_fp16_buffer_reinterprets_as_float16():
+    """Zero-copy aliasing, which 2.x documented as unsupported, now round-trips."""
+    a = np.array([1.5, -np.inf, np.inf, np.nan, -0.0, 65504.0], dtype=ud.fp16)
+    h = np.frombuffer(a.tobytes(), dtype=np.float16)
+    assert _same_values(h.astype(np.float64), a.astype(np.float64)).all()
+    back = np.frombuffer(h.tobytes(), dtype=ud.fp16)
+    assert _same_values(back.astype(np.float64), a.astype(np.float64)).all()
+
+
+def test_fp8e5m2_special_encodings_are_ieee():
+    bits = np.array([0x7C, 0xFC, 0x7D, 0x7E, 0x7F, 0xFD, 0xFE, 0xFF], dtype=np.uint8)
+    got = bits.view(ud.fp8e5m2).astype(np.float64)
+    assert got[0] == np.inf and got[1] == -np.inf
+    assert np.isnan(got[2:]).all()
+    enc = np.array([np.inf, -np.inf], dtype=np.float64).astype(ud.fp8e5m2).view(np.uint8)
+    assert list(enc) == [0x7C, 0xFC]
+
+
+@pytest.mark.skipif(not HAVE_ML, reason="ml_dtypes not installed")
+def test_fp8e5m2_decodes_every_pattern_as_ml_dtypes():
+    bits = np.arange(256, dtype=np.uint8)
+    ours = bits.view(ud.fp8e5m2).astype(np.float64)
+    theirs = bits.view(ml_dtypes.float8_e5m2).astype(np.float64)
+    bad = np.nonzero(~_same_values(ours, theirs))[0]
+    assert bad.size == 0, f"{bad.size} patterns differ, first {hex(int(bits[bad[0]]))}"
+
+
+def test_nan_conversions_are_canonical():
+    """The documented limit of the IEEE identity: a NaN keeps neither its sign
+    nor its payload through a conversion, where numpy.float16 keeps both."""
+    src = np.array([0xFFF8000000000000, 0x7FF8000000001234], dtype=np.uint64).view(np.float64)
+    with np.errstate(invalid="ignore"):
+        got = src.astype(ud.fp16).view(np.uint16)
+    assert list(got) == [0x7E00, 0x7E00]

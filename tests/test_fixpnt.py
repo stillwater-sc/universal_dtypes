@@ -96,3 +96,64 @@ def test_registry():
     assert {"fixpnt16", "fixpnt8"} <= set(ud.fixpnt_dtypes)
     assert ud.fixpnt_dtypes["fixpnt16"] is ud.fixpnt16
     assert set(ud.fixpnt_dtypes) <= set(ud.dtypes)
+
+
+# A division by zero saturates, by the dividend's sign, for every fixed-point
+# dtype. Universal 5.15 and later throw fixpnt_divide_by_zero by default
+# (universal#1907); a C++ exception cannot cross a NumPy ufunc loop, so it
+# aborted the interpreter. python/CMakeLists.txt turns the throw off. The check
+# runs in a child process, so a regression fails this test instead of killing
+# the test run. The child starts in tmp_path: `python -c` puts its working
+# directory first on sys.path, and from the repo root that is the source tree,
+# which has no _core when the package is installed rather than editable.
+_DIVIDE_BY_ZERO = """
+import sys, warnings
+import numpy as np
+import universal_dtypes as ud
+warnings.simplefilter("ignore")
+for name, scalar in ud.fixpnt_dtypes.items():
+    a = np.array([1.0, -1.0, 0.25, -0.25], dtype=scalar)
+    q = (a / np.zeros(4, dtype=scalar)).astype(np.float64)
+    big = float(np.array([1e30], dtype=scalar).astype(np.float64)[0])
+    small = float(np.array([-1e30], dtype=scalar).astype(np.float64)[0])
+    expect = [big, small, big, small]
+    if list(q) != expect:
+        sys.exit(f"{name}: x / 0 gave {list(q)}, expected {expect}")
+print("ok")
+"""
+
+
+def test_division_by_zero_saturates_instead_of_aborting(tmp_path):
+    import subprocess
+    import sys
+
+    r = subprocess.run(
+        [sys.executable, "-c", _DIVIDE_BY_ZERO],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        cwd=tmp_path,
+    )
+    assert r.returncode == 0 and r.stdout.strip() == "ok", (
+        f"exit {r.returncode}\nstdout: {r.stdout}\nstderr: {r.stderr[-2000:]}"
+    )
+
+
+def test_q31_sqrt_is_correctly_rounded_up_to_maxpos():
+    """q31 sqrt rounds to nearest, and stays below 1 near maxpos.
+
+    Under 2.x (Universal v5.11.0), the square root of maxpos (1 - 2^-31) wrapped
+    to -1: 1581 of 5000 random operands gave a wrong result.
+    """
+    import math
+
+    rng = np.random.default_rng(31)
+    n = np.concatenate([[0, 1, 2, 2**31 - 2, 2**31 - 1], rng.integers(0, 2**31, 5000)])
+    a = n.astype(np.int32).view(ud.q31)
+    got = np.sqrt(a).view(np.int32).astype(np.int64)
+    for k, r in zip(n.tolist(), got.tolist()):
+        # sqrt(k / 2^31) * 2^31 = sqrt(k * 2^31), rounded to nearest, saturated
+        m = math.isqrt(k << 31)
+        if (2 * m + 1) ** 2 <= 4 * (k << 31):
+            m += 1
+        assert r == min(m, 2**31 - 1), (k, r, m)

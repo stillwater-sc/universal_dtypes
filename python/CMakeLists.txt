@@ -68,4 +68,13 @@ if(NOT DEFINED UD_UNIVERSAL_VERSION OR "${UD_UNIVERSAL_VERSION}" STREQUAL "")
 endif()
 target_compile_definitions(_core PRIVATE UD_UNIVERSAL_VERSION="${UD_UNIVERSAL_VERSION}")
 
+# A fixed-point division by zero saturates: x / 0 is maxpos or maxneg by the
+# dividend's sign, as it was before Universal 5.15. From 5.15 on, Universal
+# throws fixpnt_divide_by_zero by default (universal#1907). A C++ exception
+# cannot cross a NumPy ufunc loop, so it reached std::terminate and aborted the
+# Python process. fixpnt has no NaN or inf to carry the failure in the value,
+# and saturating is what these dtypes already do on overflow. Set on the
+# target, so every translation unit sees the same fixpnt.
+target_compile_definitions(_core PRIVATE FIXPNT_THROW_DIVIDE_BY_ZERO=0)
+
 install(TARGETS _core DESTINATION universal_dtypes)
