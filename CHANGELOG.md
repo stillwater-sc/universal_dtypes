@@ -63,6 +63,27 @@ encodings and q31 `sqrt` above.
 
 <!-- version list -->
 
+## v3.0.0 (2026-11-27)
+
+### Bug Fixes
+
+- **build**: Pin Universal to v5.18.0; fp16 and fp8e5m2 become IEEE-encoded
+  ([#74](https://github.com/stillwater-sc/universal_dtypes/pull/74),
+  [`3d5ef32`](https://github.com/stillwater-sc/universal_dtypes/commit/3d5ef32524650370a8b47f49888bcb9b07e7e070))
+
+### Chores
+
+- **ci**: Move off the retiring macOS 14 image, pin the wheel deployment target
+  ([#73](https://github.com/stillwater-sc/universal_dtypes/pull/73),
+  [`0f64364`](https://github.com/stillwater-sc/universal_dtypes/commit/0f64364a9444b35c448f8de0b6c584218c69d476))
+
+### Breaking Changes
+
+- **build**: Fp16 and fp8e5m2 encode ±inf as IEEE-754 does (fp16 +inf is 0x7c00, was 0x7ffe).
+  Infinities stored by 2.x read back as NaN; 0x7c00/0xfc00 and 0x7c/0xfc read as ±inf, not NaN.
+  Finite values are unchanged.
+
+
 ## v2.5.1 (2026-10-22)
 
 ### Bug Fixes
