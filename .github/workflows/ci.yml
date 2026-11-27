@@ -36,6 +36,15 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
+      # GCC 12, the minimum (README), not ubuntu-22.04's default GCC 11.4:
+      # Universal 5.13 and later use constexpr std::vector, which GCC 11's
+      # libstdc++ lacks.
+      - name: Use GCC 12 (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          command -v g++-12 || { sudo apt-get update && sudo apt-get install -y g++-12; }
+          echo "CC=gcc-12" >> $GITHUB_ENV
+          echo "CXX=g++-12" >> $GITHUB_ENV
       - name: Install package
         run: pip install ".[dev]" -v
       - name: Run tests

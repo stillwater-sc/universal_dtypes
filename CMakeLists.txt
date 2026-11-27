@@ -4,6 +4,15 @@ project(universal_dtypes CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# GCC 11 cannot compile Universal 5.13 and later, whose constexpr code constructs
+# a std::vector, so fail here with the reason rather than with pages of errors
+# from inside Universal's headers.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+    message(FATAL_ERROR
+        "GCC ${CMAKE_CXX_COMPILER_VERSION} is too old: universal_dtypes needs GCC 12 or later. "
+        "Point CXX at a newer compiler, e.g. CXX=g++-12.")
+endif()
+
 # MSVC: report the correct __cplusplus value so C++20 headers like <bit> are
 # detected by Universal's bit_cast.hpp.
 if(MSVC)
@@ -24,7 +33,7 @@ endif()
 #
 # Single source of truth: the same value drives the FetchContent tag and the
 # version reported by universal_dtypes.build_info(), so the two cannot drift.
-set(UD_UNIVERSAL_TAG "v5.11.0")
+set(UD_UNIVERSAL_TAG "v5.18.0")
 
 find_package(universal QUIET)
 if(universal_FOUND)

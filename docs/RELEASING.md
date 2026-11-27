@@ -139,7 +139,7 @@ Universal supplies the arithmetic behind every dtype, and it is **pinned to a
 release tag** in the top-level `CMakeLists.txt`:
 
 ```cmake
-set(UD_UNIVERSAL_TAG "v5.11.0")
+set(UD_UNIVERSAL_TAG "v5.18.0")
 ```
 
 That one variable drives both the `FetchContent` tag and the version reported by
@@ -158,7 +158,19 @@ change to our own source. Treat it accordingly.
    [#65](https://github.com/stillwater-sc/universal_dtypes/issues/65) went red,
    and the cfloat signaling-NaN tests, held as strict xfails for
    universal#1303, began passing.
-3. Use a conventional-commit type that reflects the effect: `fix` when it
+3. Diff the numerics against the published wheel, because a green suite is not
+   enough. Install the current release in a separate venv. Dump decode (every
+   pattern of the 8- and 16-bit formats), encode, `+ - * /` and the math ufuncs
+   for every dtype, with both builds, and explain every difference. In the
+   v5.11.0 → v5.18.0 bump the suite stayed green, and only the diff found:
+   - the `fp16`/`fp8e5m2` `±inf` encodings becoming IEEE's (a breaking change);
+   - q31 `sqrt` near 1 no longer wrapping to −1;
+   - a fixed-point `x / 0` that aborted the interpreter. Universal began
+     throwing `fixpnt_divide_by_zero`, and a C++ exception can't cross a ufunc
+     loop.
+
+   Each finding becomes a test that fails against the old wheel.
+4. Use a conventional-commit type that reflects the effect: `fix` when it
    corrects numerics, `feat` when it exposes something new, `chore` only when
    genuinely inert. It should appear in the changelog either way — a silent
    Universal bump is exactly what the pin exists to prevent.

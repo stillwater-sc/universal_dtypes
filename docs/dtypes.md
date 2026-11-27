@@ -322,46 +322,41 @@ that space:
 Both have `±inf`, `NaN` and subnormals, so `np.isnan`, `np.isinf` and
 `np.isfinite` all work, and both round to nearest-even.
 
-### Not interchangeable with IEEE binary16 or ml_dtypes
+### Bit-identical to IEEE binary16 and ml_dtypes, from 3.0.0
 
-**`fp16` is not a drop-in for `numpy.float16`, and `fp8e5m2` is not a drop-in for
-`ml_dtypes.float8_e5m2`.** They share a field layout and produce the same values
-for finite data, but the encodings are *not* the same type and this package does
-not offer compatibility with either as a guarantee.
+**`fp16` encodes every value as `numpy.float16` does, and `fp8e5m2` as
+`ml_dtypes.float8_e5m2` does**, including `±inf` and `NaN`. Every one of the
+65536 `fp16` patterns decodes to the same value as the IEEE binary16 pattern, and
+encoding gives the same bits. So a raw buffer can be reinterpreted across them
+(`np.frombuffer(x.tobytes(), dtype=np.float16)`), as well as converted with
+`astype`.
 
-`cfloat` applies one encoding rule uniformly across its whole parameter range.
-IEEE-754 does not: its special-value conventions are specific to the sizes the
-standard happens to enumerate, and do not generalize to arbitrary
-`(nbits, es)`. Where the two disagree, `cfloat` is the definition this package
-implements — the Stillwater KPU honors the `cfloat` encoding, so matching IEEE
-bit-for-bit is not a goal we would trade `cfloat` consistency for.
+This changed in 3.0.0, with the move to Universal v5.18.0. From v5.15.0, cfloat
+uses one rule in every configuration: inf is the encoding right after maxpos,
+and every NaN is above it (universal#1895, #1897). Without max-exponent values,
+which is how both shipped configs are built, that rule is IEEE-754's.
 
-Concretely, the disagreement is confined to the `±inf` patterns — 4 encodings out
-of 65536 for `fp16`, 4 of 256 for `fp8e5m2`:
+Before 3.0.0, `cfloat` encoded `±inf` as `s.11111.1111111110`, and the four
+`±inf` patterns meant different things:
 
-| pattern | `fp16` decodes as | IEEE binary16 decodes as |
-|---------|-------------------|--------------------------|
+| pattern | `fp16` before 3.0.0 | `fp16` from 3.0.0, and IEEE binary16 |
+|---------|---------------------|--------------------------------------|
 | `0x7c00` | `NaN` | `+inf` |
 | `0x7ffe` | `+inf` | `NaN` |
 | `0xfc00` | `NaN` | `-inf` |
 | `0xfffe` | `-inf` | `NaN` |
 
-`fp8e5m2` diverges the same way at `0x7c`/`0x7e`/`0xfc`/`0xfe`. Every other
-all-ones-exponent pattern is `NaN` under both.
+`fp8e5m2` changed the same way at `0x7c`/`0x7e`/`0xfc`/`0xfe`. Finite values,
+and every other NaN pattern, are unchanged.
 
-What this means in practice:
+What this means for data written before 3.0.0:
 
-- **`astype` is correct in both directions** — `inf` stays `inf`, `NaN` stays
-  `NaN`, finite values are unchanged. Converting is the supported path and always
-  has been.
-- **Do not reinterpret a raw buffer** across `fp16` and `numpy.float16`
-  (`np.frombuffer(x.tobytes(), ...)`). Zero-copy aliasing is **not supported**
-  and will not be: those four patterns change meaning. Finite-only data happens
-  to survive it, which makes the trap quiet — use `astype`.
-
-A recoding shim, so a copy across the boundary can fix up `±inf` explicitly
-rather than relying on the accident that finite data aliases cleanly, is a
-plausible future addition.
+- **Infinities written by 2.x** (`0x7ffe`, `0xfffe` in `fp16`; `0x7e`, `0xfe`
+  in `fp8e5m2`) read back as `NaN` in 3.0.0 or later. 2.x wrote `NaN` as
+  `0x7fff` (`fp16`) or `0x7f` (`fp8e5m2`), which stays `NaN`, and finite data
+  reads back unchanged.
+- **To carry such data across**, decode it with the version that wrote it, for
+  example to `float64` or `numpy.float16`, and re-encode it with 3.0.0.
 
 **`bfloat16`** is its own dedicated standalone implementation going through
 single precision float hardware rather than going through the cfloat<> family — see
