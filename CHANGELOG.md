@@ -26,8 +26,10 @@ skips the yanked `1.0.0` (see [`docs/RELEASING.md`](docs/RELEASING.md) §3).
     (universal#1895, #1897). Before, `+inf` was `0x7ffe` and `0x7c00` decoded as
     `NaN`.
   - **Stored data:** infinities written by 2.x (`fp16` `0x7ffe`/`0xfffe`,
-    `fp8e5m2` `0x7e`/`0xfe`) read back as `NaN`. NaN and finite values are
-    unchanged. Re-encode such data through `float64` with the version that wrote
+    `fp8e5m2` `0x7e`/`0xfe`) read back as `NaN`. The patterns 2.x decoded as
+    `NaN` but never wrote, `0x7c00`/`0xfc00` and `0x7c`/`0xfc`, which a raw
+    buffer can carry, now decode as `±inf`. Other NaN patterns and finite values
+    are unchanged. Re-encode such data through `float64` with the version that wrote
     it.
   - Tests pin the new encodings exhaustively (all 65536 `fp16` patterns against
     `numpy.float16`, all 256 `fp8e5m2` patterns against `ml_dtypes`), plus

@@ -363,6 +363,10 @@ What this means for data written before 3.0.0:
   in `fp8e5m2`) read back as `NaN` in 3.0.0 or later. 2.x wrote `NaN` as
   `0x7fff` (`fp16`) or `0x7f` (`fp8e5m2`), which stays `NaN`, and finite data
   reads back unchanged.
+- **The reverse also changes.** 2.x never wrote `0x7c00`/`0xfc00` (`fp16`) or
+  `0x7c`/`0xfc` (`fp8e5m2`), but it decoded them as `NaN`, and an array filled
+  from a raw buffer (IEEE `float16` data, say) can hold them. From 3.0.0 they
+  decode as `±inf`.
 - **To carry such data across**, decode it with the version that wrote it, for
   example to `float64` or `numpy.float16`, and re-encode it with 3.0.0.
 
