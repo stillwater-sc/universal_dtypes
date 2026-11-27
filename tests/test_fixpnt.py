@@ -103,7 +103,9 @@ def test_registry():
 # (universal#1907); a C++ exception cannot cross a NumPy ufunc loop, so it
 # aborted the interpreter. python/CMakeLists.txt turns the throw off. The check
 # runs in a child process, so a regression fails this test instead of killing
-# the test run.
+# the test run. The child starts in tmp_path: `python -c` puts its working
+# directory first on sys.path, and from the repo root that is the source tree,
+# which has no _core when the package is installed rather than editable.
 _DIVIDE_BY_ZERO = """
 import sys, warnings
 import numpy as np
@@ -121,12 +123,16 @@ print("ok")
 """
 
 
-def test_division_by_zero_saturates_instead_of_aborting():
+def test_division_by_zero_saturates_instead_of_aborting(tmp_path):
     import subprocess
     import sys
 
     r = subprocess.run(
-        [sys.executable, "-c", _DIVIDE_BY_ZERO], capture_output=True, text=True, timeout=120
+        [sys.executable, "-c", _DIVIDE_BY_ZERO],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        cwd=tmp_path,
     )
     assert r.returncode == 0 and r.stdout.strip() == "ok", (
         f"exit {r.returncode}\nstdout: {r.stdout}\nstderr: {r.stderr[-2000:]}"
